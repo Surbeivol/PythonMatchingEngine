@@ -12,6 +12,7 @@ class Market():
         self.bids = Bids()
         self.asks = Asks()
         self.trades = []
+        self.orders = dict()
 		
     def send(self, Order):
         #pdb.set_trace()
@@ -23,8 +24,35 @@ class Market():
                     self.bids.add(Order)            
                 else:
                     self.asks.add(Order)
+                self.orders.update({Order.uid:Order})
                 break
-			
+    
+    def cancel(self, uid): 
+        order = self.orders[uid]
+        if order.is_buy:
+            pricelevel = self.bids.book[order.price]
+        else:
+            pricelevel = self.asks.book[order.price]
+    
+        # right side
+        if order.next is None:
+            pricelevel.tail = order.prev
+            if order is pricelevel.head:
+                self.remove_price(order.is_buy, order.price)                
+            else:
+                order.prev.next = None        
+        # left side
+        elif order is pricelevel.head:
+            pricelevel.head = order.next
+            order.next.prev = None
+        # middle
+        else:
+            order.next.prev = order.prev
+            order.prev.next = order.next            
+
+        del self.orders[uid]
+        return
+
     def is_aggressive(self, Order):
         is_agg = True
         if Order.is_buy:
@@ -43,11 +71,14 @@ class Market():
         while(Order.leavesqty > 0):
             if best.head.leavesqty <= Order.leavesqty:                
                 trdqty = best.head.leavesqty
+                trduid = best.head.uid
                 self.trades.append([best.price, trdqty])
                 best.pop()
+                del self.orders[trduid]
                 Order.leavesqty -= trdqty
                 if best.head is None:
-                    self.remove_price(Order.is_buy, best.price)
+                    # remove PriceLevel from the order's opposite side
+                    self.remove_price(not Order.is_buy, best.price)
                     break
             else:
                 self.trades.append([best.price, Order.leavesqty])
@@ -56,17 +87,18 @@ class Market():
         
     def remove_price(self, is_buy, price):
         if is_buy:
-            del self.asks.book[price]
-            if len(self.asks.book)>0:
-                self.asks.best = self.asks.book[min(self.asks.book.keys())]
-            else:
-                self.asks.best = None
-        else:
             del self.bids.book[price]
             if len(self.bids.book)>0:
                 self.bids.best = self.bids.book[max(self.bids.book.keys())]
             else:
                 self.bids.best = None
+        else:
+            del self.asks.book[price]
+            if len(self.asks.book)>0:
+                self.asks.best = self.asks.book[min(self.asks.book.keys())]
+            else:
+                self.asks.best = None
+            
                    
                 
 class Order():
