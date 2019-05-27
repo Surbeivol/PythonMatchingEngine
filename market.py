@@ -12,10 +12,12 @@ class Market():
         self.bids = Bids()
         self.asks = Asks()
         self.trades = []
+        # keeps track of all orders sent to the market
+        # allows fast access of orders status by uid
         self.orders = dict()
 		
-    def send(self, Order):
-        #pdb.set_trace()
+    def send(self, Order):                
+        self.orders.update({Order.uid:Order})
         while (Order.leavesqty > 0):
             if self.is_aggressive(Order):            
                 self.sweep_best_price(Order)    
@@ -23,8 +25,7 @@ class Market():
                 if Order.is_buy:
                     self.bids.add(Order)            
                 else:
-                    self.asks.add(Order)
-                self.orders.update({Order.uid:Order})
+                    self.asks.add(Order)                
                 break
     
     def cancel(self, uid): 
@@ -50,8 +51,10 @@ class Market():
             order.next.prev = order.prev
             order.prev.next = order.next            
 
-        del self.orders[uid]
+        order.leavesqty = 0 
         return
+    
+    
 
     def is_aggressive(self, Order):
         is_agg = True
@@ -71,10 +74,9 @@ class Market():
         while(Order.leavesqty > 0):
             if best.head.leavesqty <= Order.leavesqty:                
                 trdqty = best.head.leavesqty
-                trduid = best.head.uid
+                best.head.leavesqty = 0
                 self.trades.append([best.price, trdqty])
-                best.pop()
-                del self.orders[trduid]
+                best.pop()                
                 Order.leavesqty -= trdqty
                 if best.head is None:
                     # remove PriceLevel from the order's opposite side
@@ -115,7 +117,7 @@ class Order():
         self.leavesqty = qty
         self.price = price
         self.timestamp = timestamp    
-        # DDL attributes 
+        # DDL attributes import unittest
         self.prev = None
         self.next = None
         
