@@ -5,6 +5,7 @@ Created on Thu May 16 14:14:51 2019
 @author: Francisco Merlos
 """
 from abc import ABC, abstractmethod
+import time 
 
 class Market():
 
@@ -14,19 +15,37 @@ class Market():
         self.trades = []
         # keeps track of all orders sent to the market
         # allows fast access of orders status by uid
-        self.orders = dict()
+        self.orders = dict()        
+        self.last_uid = 0 
 		
-    def send(self, Order):                
-        self.orders.update({Order.uid:Order})
-        while (Order.leavesqty > 0):
-            if self.is_aggressive(Order):            
-                self.sweep_best_price(Order)    
+    def send(self, is_buy, qty, price, timestamp = time.time()):
+        """ Send new order to market
+            Passive orders can't be matched and will be added to the book
+            Aggressive orders are matched against opp. side's resting orders
+            
+            Params:
+                is_buy (bool): True if it is a buy order
+                qty (int): initial quantity or size of the order 
+                price (float): limit price of the order
+                timestamp (float): time of processing 
+                
+            Returns:
+                self.last_uid (int): order unique id set by the market 
+        """
+        
+        self.last_uid += 1 
+        neword = Order(self.last_uid, is_buy, qty, price, timestamp)
+        self.orders.update({self.last_uid:neword})
+        while (neword.leavesqty > 0):
+            if self.is_aggressive(neword):            
+                self.sweep_best_price(neword)    
             else:
-                if Order.is_buy:
-                    self.bids.add(Order)            
+                if is_buy:
+                    self.bids.add(neword)            
                 else:
-                    self.asks.add(Order)                
-                break
+                    self.asks.add(neword)            
+                return self.last_uid
+                
     
     def cancel(self, uid): 
         order = self.orders[uid]
@@ -107,21 +126,27 @@ class Order():
     """ Represents an order inside the market with its current status 
     
     """
-    #__slots__ = ["uid", "is_buy", "qty", "price", "timestamp", "status"]
+    #__slots__ = ["uid", "is_buy", "qty", "price", "timestamp", "status"]        
     
-    def __init__(self, uid, is_buy, qty, price, timestamp):
+    def __init__(self, uid, is_buy, qty, price, timestamp = time.time()):
         self.uid = uid
         self.is_buy = is_buy
         self.qty = qty
         self.cumqty = 0
+        # outstanding volume in market. If filled or canceled => 0. 
         self.leavesqty = qty
         self.price = price
-        self.timestamp = timestamp    
+        self.timestamp = timestamp  
+        # is the order active and resting in the orderbook?
+        self.active = False         
         # DDL attributes import unittest
         self.prev = None
         self.next = None
         
-
+    
+        
+        
+    
 class PriceLevel():
     """ Represents a price in the orderbook with its order queue
     
@@ -137,6 +162,7 @@ class PriceLevel():
         self.tail = Order
     
     def pop(self):
+        self.head.active = False
         if self.head.next is None:         
             self.head = None
             self.tail = None
@@ -146,8 +172,12 @@ class PriceLevel():
             
         
 class OrderBook():
+    """ Bids or Asks orderbook with different PriceLevels
+    
+    """
     def __init__(self):        
         self.book = dict()
+        # Pointer to Best PriceLevel 
         self.best = None
 	
     def add(self, Order):
@@ -158,6 +188,7 @@ class OrderBook():
             self.book.update({Order.price:new_pricelevel})
             if self.best is None or self.is_new_best(Order):
                 self.best = new_pricelevel
+        Order.active = True
     
     @abstractmethod
     def is_new_best(self, Order):
@@ -165,7 +196,10 @@ class OrderBook():
         
 
 class Bids(OrderBook):
-    
+    """ Bids Orderbook where best PriceLevel has highest price
+        Implements is_new_best abstract method that behaves differently
+        for Bids or Asks
+    """
     def __init__(self):
         super().__init__()
     
@@ -176,6 +210,10 @@ class Bids(OrderBook):
             return False
     
 class Asks(OrderBook):
+    """ Asks Orderbook where best PriceLevel has lowest price
+        Implements is_new_best abstract method that behaves differently
+        for Bids or Asks
+    """
     def __init__(self):
         super().__init__()
         
