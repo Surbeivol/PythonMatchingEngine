@@ -6,6 +6,7 @@ Created on Thu May 16 14:14:51 2019
 """
 from abc import ABC, abstractmethod
 import time 
+import copy
 
 class Market():
 
@@ -15,9 +16,31 @@ class Market():
         self.trades = []
         # keeps track of all orders sent to the market
         # allows fast access of orders status by uid
-        self.orders = dict()        
+        self._orders = dict()        
         self.last_uid = 0 
-		
+
+    @property
+    def orders(self):
+        """ We do not want users to access _orders directly. 
+            _orders is a dict of pointers to Order objets and so these 
+            could be modified without respecting price-time priority
+        """
+        return copy.deepcopy(self._orders)
+    
+    def get(self, uid):
+        """  Get market order by uid
+            
+            Params:
+                uid (int): unique identifier of the Order
+        
+            Returns:
+                order (Order): a copy of the order identified by this uid
+        
+        """
+        return copy.deepcopy(self._orders[uid])
+    
+    
+    
     def send(self, is_buy, qty, price, timestamp = time.time()):
         """ Send new order to market
             Passive orders can't be matched and will be added to the book
@@ -35,10 +58,10 @@ class Market():
         
         self.last_uid += 1 
         neword = Order(self.last_uid, is_buy, qty, price, timestamp)
-        self.orders.update({self.last_uid:neword})
+        self._orders.update({self.last_uid:neword})
         while (neword.leavesqty > 0):
-            if self.is_aggressive(neword):            
-                self.sweep_best_price(neword)    
+            if self._is_aggressive(neword):            
+                self._sweep_best_price(neword)    
             else:
                 if is_buy:
                     self.bids.add(neword)            
@@ -48,7 +71,7 @@ class Market():
                 
     
     def cancel(self, uid): 
-        order = self.orders[uid]
+        order = self._orders[uid]
         if order.is_buy:
             pricelevel = self.bids.book[order.price]
         else:
@@ -58,7 +81,7 @@ class Market():
         if order.next is None:
             pricelevel.tail = order.prev
             if order is pricelevel.head:
-                self.remove_price(order.is_buy, order.price)                
+                self._remove_price(order.is_buy, order.price)                
             else:
                 order.prev.next = None        
         # left side
@@ -71,11 +94,12 @@ class Market():
             order.prev.next = order.next            
 
         order.leavesqty = 0 
+        order.active = False
         return
     
     
 
-    def is_aggressive(self, Order):
+    def _is_aggressive(self, Order):
         is_agg = True
         if Order.is_buy:
             if self.asks.best is None or self.asks.best.price > Order.price:
@@ -85,7 +109,7 @@ class Market():
                 is_agg = False
         return is_agg 
     
-    def sweep_best_price(self, Order):        
+    def _sweep_best_price(self, Order):        
         if Order.is_buy:            
             best = self.asks.best
         else:
@@ -99,14 +123,14 @@ class Market():
                 Order.leavesqty -= trdqty
                 if best.head is None:
                     # remove PriceLevel from the order's opposite side
-                    self.remove_price(not Order.is_buy, best.price)
+                    self._remove_price(not Order.is_buy, best.price)
                     break
             else:
                 self.trades.append([best.price, Order.leavesqty])
                 best.head.leavesqty -= Order.leavesqty
                 Order.leavesqty = 0
         
-    def remove_price(self, is_buy, price):
+    def _remove_price(self, is_buy, price):
         if is_buy:
             del self.bids.book[price]
             if len(self.bids.book)>0:
