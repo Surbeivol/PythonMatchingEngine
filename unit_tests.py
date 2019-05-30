@@ -14,7 +14,6 @@ import numpy as np
 
 class NewOrderTests(unittest.TestCase):
        
-        
     def test_new_pricelevel(self):
         """ Add new bid and ask orders and checks price-time priority
         
@@ -27,9 +26,7 @@ class NewOrderTests(unittest.TestCase):
         o2 = namedtuple('Order', 'is_buy, qty, price')
         o2 = o2(is_buy=True, qty=5, price=bidprice)
         o3 = namedtuple('Order', 'is_buy, qty, price')
-        o3 = o3(is_buy=True, qty=7, price=bidprice)
-    
-        
+        o3 = o3(is_buy=True, qty=7, price=bidprice)     
                 
         # Check price level creation, heads and tails, uid & order active
         o1uid = market.send(*o1)
@@ -47,8 +44,7 @@ class NewOrderTests(unittest.TestCase):
         self.assertEqual(market._bids.best.head.uid, o1uid)
         self.assertEqual(market._bids.best.head.next.uid, o2uid)
         self.assertEqual(market._bids.best.tail.uid, o3uid)
-        # Check list of orders
-        
+        # Check list of orders        
         
         ### SAME FOR ASKS
         askprice = bidprice+0.0001
@@ -58,8 +54,7 @@ class NewOrderTests(unittest.TestCase):
         o5 = o5(is_buy=False, qty=5, price=askprice)
         o6 = namedtuple('Order', 'is_buy, qty, price')
         o6 = o6(is_buy=False, qty=7, price=askprice)
-                
-        
+                     
         # Check price level creation, heads and tails
         o4uid = market.send(*o4)
         self.assertIn(askprice, market._asks.book.keys())
@@ -68,7 +63,7 @@ class NewOrderTests(unittest.TestCase):
         self.assertEqual(market._asks.best.tail.uid, o4uid)
         self.assertEqual(market._orders[o4uid].uid, o4uid)
         o5uid = market.send(*o5)
-        self.assertEqual(market._asks.best.price, askprice)
+
         # Check time priority inside PriceLevel
         self.assertIs(market._asks.best.head.uid, o4uid)        
         o6uid = market.send(*o6)

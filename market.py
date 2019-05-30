@@ -6,7 +6,7 @@ Created on Thu May 16 14:14:51 2019
 """
 from abc import ABC, abstractmethod
 import time 
-import copy
+import numpy as np
 
 class Market():
 
@@ -34,6 +34,7 @@ class Market():
             return None
         else:
             return self._asks.best.price, self._asks.best.vol
+    
     
     def get(self, uid):
         """  Get market order by uid
@@ -84,6 +85,9 @@ class Market():
                 return self.last_uid            
     
     def cancel(self, uid): 
+        """ Cancel order identified by its uid
+        
+        """
         order = self._orders[uid]
         if order.is_buy:
             pricelevel = self._bids.book[order.price]
@@ -116,8 +120,8 @@ class Market():
         
         """
         self.cancel(uid)
-        self.send(new_is_buy, new_qty, new_price)
-        
+        return self.send(new_is_buy, new_qty, new_price)
+    
 
     def _is_aggressive(self, Order):
         is_agg = True
@@ -128,6 +132,7 @@ class Market():
             if self._bids.best is None or self._bids.best.price < Order.price:
                 is_agg = False
         return is_agg 
+    
     
     def _sweep_best_price(self, Order):        
         if Order.is_buy:            
@@ -150,6 +155,7 @@ class Market():
                 best.head.leavesqty -= Order.leavesqty
                 Order.leavesqty = 0
         
+        
     def _remove_price(self, is_buy, price):
         if is_buy:
             del self._bids.book[price]
@@ -163,9 +169,44 @@ class Market():
                 self._asks.best = self._asks.book[min(self._asks.book.keys())]
             else:
                 self._asks.best = None
+        
+        
+    def top_bids(self, nlevels):
+        """ Returns the first nlevels best bids of the book
+        
+        """
+        prices = np.fromiter(self._bids.book.keys(), float)
+        pbids = np.full(nlevels, np.nan)
+        vbids = np.full(nlevels, np.nan)
+        for i in range(min(nlevels, len(prices))):
+            maxidx = np.argmax(prices)
+            maxpx = prices[maxidx]
+            if maxpx is -np.inf:
+                break
+            pbids[i] = maxpx
+            vbids[i] = self._bids.book[maxpx].vol
+            prices[maxidx] = -np.inf        
+        return [pbids, vbids]        
+       
+        
+    def top_asks(self, nlevels):
+        """ Returns the first nlevels best asks of the book
+        
+        """
+        prices = np.fromiter(self._asks.book.keys(), float)
+        pasks = np.full(nlevels, np.nan)
+        vasks = np.full(nlevels, np.nan)
+        for i in range(min(nlevels, len(prices))):
+            maxidx = np.argmin(prices)
+            maxpx = prices[maxidx]
+            if maxpx is np.inf:
+                break
+            pasks[i] = maxpx
+            vasks[i] = self._asks.book[maxpx].vol
+            prices[maxidx] = np.inf        
+        return [pasks, vasks]                           
+    
             
-                   
-                
 class Order():
     """ Represents an order inside the market with its current status 
     
@@ -185,10 +226,6 @@ class Order():
         # DDL attributes import unittest
         self.prev = None
         self.next = None
-        
-    
-        
-        
     
 class PriceLevel():
     """ Represents a price in the orderbook with its order queue
@@ -223,8 +260,7 @@ class PriceLevel():
             self.head.next.prev = None            
             self.head = self.head.next
     
-            
-        
+    
 class OrderBook():
     """ Bids or Asks orderbook with different PriceLevels
     
