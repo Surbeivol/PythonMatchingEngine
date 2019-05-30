@@ -11,21 +11,29 @@ import copy
 class Market():
 
     def __init__(self):
-        self.bids = Bids()
-        self.asks = Asks()
+        self._bids = Bids()
+        self._asks = Asks()
         self.trades = []
         # keeps track of all orders sent to the market
         # allows fast access of orders status by uid
         self._orders = dict()        
         self.last_uid = 0 
 
+    # Best Bid    
+    @property    
+    def bbid(self):
+        if self._bids.best is None:
+            return None
+        else:
+            return self._bids.best.price, self._bids.best.vol
+    
+    # Best ask
     @property
-    def orders(self):
-        """ We do not want users to access _orders directly. 
-            _orders is a dict of pointers to Order objets and so these 
-            could be modified without respecting price-time priority
-        """
-        return copy.deepcopy(self._orders)
+    def bask(self):
+        if self._asks.best is None:
+            return None
+        else:
+            return self._asks.best.price, self._asks.best.vol
     
     def get(self, uid):
         """  Get market order by uid
@@ -37,8 +45,14 @@ class Market():
                 order (Order): a copy of the order identified by this uid
         
         """
-        return copy.deepcopy(self._orders[uid])
-    
+        order = self._orders[uid]
+        return {'uid':order.uid,
+                'is_buy':order.is_buy,                
+                'qty':order.qty,
+                'leavesqty':order.leavesqty,
+                'price':order.price,
+                'timestamp':order.timestamp,
+                'active':order.active}
     
     
     def send(self, is_buy, qty, price, timestamp = time.time()):
@@ -64,18 +78,17 @@ class Market():
                 self._sweep_best_price(neword)    
             else:
                 if is_buy:
-                    self.bids.add(neword)            
+                    self._bids.add(neword)            
                 else:
-                    self.asks.add(neword)            
-                return self.last_uid
-                
+                    self._asks.add(neword)            
+                return self.last_uid            
     
     def cancel(self, uid): 
         order = self._orders[uid]
         if order.is_buy:
-            pricelevel = self.bids.book[order.price]
+            pricelevel = self._bids.book[order.price]
         else:
-            pricelevel = self.asks.book[order.price]
+            pricelevel = self._asks.book[order.price]
     
         # right side
         if order.next is None:
@@ -98,22 +111,29 @@ class Market():
         return
     
     
+    def modif(self, uid, new_is_buy, new_qty, new_price):
+        """ Currently modif is cancel + send 
+        
+        """
+        self.cancel(uid)
+        self.send(new_is_buy, new_qty, new_price)
+        
 
     def _is_aggressive(self, Order):
         is_agg = True
         if Order.is_buy:
-            if self.asks.best is None or self.asks.best.price > Order.price:
+            if self._asks.best is None or self._asks.best.price > Order.price:
                 is_agg = False
         else:
-            if self.bids.best is None or self.bids.best.price < Order.price:
+            if self._bids.best is None or self._bids.best.price < Order.price:
                 is_agg = False
         return is_agg 
     
     def _sweep_best_price(self, Order):        
         if Order.is_buy:            
-            best = self.asks.best
+            best = self._asks.best
         else:
-            best = self.bids.best        
+            best = self._bids.best        
         while(Order.leavesqty > 0):
             if best.head.leavesqty <= Order.leavesqty:                
                 trdqty = best.head.leavesqty
@@ -132,17 +152,17 @@ class Market():
         
     def _remove_price(self, is_buy, price):
         if is_buy:
-            del self.bids.book[price]
-            if len(self.bids.book)>0:
-                self.bids.best = self.bids.book[max(self.bids.book.keys())]
+            del self._bids.book[price]
+            if len(self._bids.book)>0:
+                self._bids.best = self._bids.book[max(self._bids.book.keys())]
             else:
-                self.bids.best = None
+                self._bids.best = None
         else:
-            del self.asks.book[price]
-            if len(self.asks.book)>0:
-                self.asks.best = self.asks.book[min(self.asks.book.keys())]
+            del self._asks.book[price]
+            if len(self._asks.book)>0:
+                self._asks.best = self._asks.book[min(self._asks.book.keys())]
             else:
-                self.asks.best = None
+                self._asks.best = None
             
                    
                 
@@ -156,7 +176,6 @@ class Order():
         self.uid = uid
         self.is_buy = is_buy
         self.qty = qty
-        self.cumqty = 0
         # outstanding volume in market. If filled or canceled => 0. 
         self.leavesqty = qty
         self.price = price
@@ -179,11 +198,21 @@ class PriceLevel():
         self.price = Order.price 
         self.head = Order
         self.tail = Order
-            
+
+    #Cummulative volume of all orders at this PriceLevel             
+    @property    
+    def vol(self):
+        vol = 0
+        next_order = self.head
+        while(next_order is not None):
+            vol += next_order.leavesqty
+            next_order = next_order.next
+        return vol
+    
     def append(self, Order):        
         self.tail.next = Order
         Order.prev = self.tail
-        self.tail = Order
+        self.tail = Order        
     
     def pop(self):
         self.head.active = False
@@ -193,6 +222,7 @@ class PriceLevel():
         else:
             self.head.next.prev = None            
             self.head = self.head.next
+    
             
         
 class OrderBook():
