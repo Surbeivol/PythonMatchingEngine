@@ -51,7 +51,7 @@ liquid stocks of the spanish stock exchange in less than 1 minute.
 
 from market import Market
 
-market = market()
+market = Market()
 
 # Send new order
 order_uid = market.send(is_buy=True, qty=100, price=10.002)
