@@ -40,7 +40,8 @@ all is less than 4 seconds. You can find the test in performance.py
 
 That makes it more than 250.000 processed orders per second.
 
-It could for example simulate the whole trading session of the most
+It could for example simulate the whole trading session of the mostLeave a comment
+
 liquid stocks of the spanish stock exchange in less than 1 minute. 
 
 
@@ -49,6 +50,7 @@ liquid stocks of the spanish stock exchange in less than 1 minute.
 # Create market
 
 from market import Market
+
 market = market()
 
 # Send new order
