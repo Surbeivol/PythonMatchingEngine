@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import pandas as pd
+import pdb
 
 # Create 500k buys and sells with normal distribs
 # with real live tick sizes 
@@ -49,3 +50,8 @@ len(market.trades)
 
 trd_price = [trd[0] for trd in market.trades]
 plt.plot(trd_price[0:1000])
+
+t =time.time()
+for i in range(10000):
+    market.top_bids(5)
+print(time.time()-t)
