@@ -56,7 +56,8 @@ class Market():
                 'active':order.active}
     
     
-    def send(self, is_buy, qty, price, timestamp = time.time()):
+    def send(self, is_buy, qty, price, uid=None,
+             timestamp = time.time()):
         """ Send new order to market
             Passive orders can't be matched and will be added to the book
             Aggressive orders are matched against opp. side's resting orders
@@ -70,8 +71,9 @@ class Market():
             Returns:
                 self.last_uid (int): order unique id set by the market 
         """
-        
-        self.last_uid += 1 
+        if uid is None:
+            self.last_uid += 1 
+            uid = self.last_uid
         neword = Order(self.last_uid, is_buy, qty, price, timestamp)
         self._orders.update({self.last_uid:neword})
         while (neword.leavesqty > 0):
@@ -82,7 +84,7 @@ class Market():
                     self._bids.add(neword)            
                 else:
                     self._asks.add(neword)            
-                return self.last_uid            
+                return uid
     
     def cancel(self, uid): 
         """ Cancel order identified by its uid
@@ -119,8 +121,18 @@ class Market():
         """ Currently modif is cancel + send 
         
         """
-        self.cancel(uid)
-        return self.send(new_is_buy, new_qty, new_price)
+        prev_ord = self._orders[uid]
+        if new_qty < prev_ord.leaves and new_price == prev_ord.price :
+            ## modification without loosing priority
+            prev_ord.qty=new_qty
+        else:            
+            ## modif implies go to to the end of the queue
+            raise ValueError("We did not expect this to happen")
+            self.cancel(uid)
+            self.send(is_buy=new_is_buy,
+                      qty=new_qty,
+                      price=new_price,
+                      uid=uid)        
     
 
     def _is_aggressive(self, Order):

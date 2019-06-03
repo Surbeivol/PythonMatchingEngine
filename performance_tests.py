@@ -52,6 +52,7 @@ trd_price = [trd[0] for trd in market.trades]
 plt.plot(trd_price[0:1000])
 
 t =time.time()
-for i in range(10000):
-    market.top_bids(5)
+for i in range(30000):    
+    market.top_bids(2)
 print(time.time()-t)
+
