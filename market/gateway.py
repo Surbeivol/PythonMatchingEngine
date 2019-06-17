@@ -83,7 +83,7 @@ class Gateway():
         csv['timestamp'] = pd.to_datetime(csv['timestamp'])
 
         # We will be working with ndarrays instead of DataFrames for speed
-        self.mkt_orders = csv.values
+        self.hist_orders = csv.values
         self.mkt_nord = csv.shape[0]
         
         # we store index positions of columns for array indexing
@@ -96,9 +96,9 @@ class Gateway():
         # this is the real orderbook that was present when the market opened
         # right after the opening auction
         for ord_idx in range(BOOK_POS):   
-            self._send_to_market(self.mkt_orders[ord_idx], is_mine=False)
+            self._send_to_market(self.hist_orders[ord_idx], is_mine=False)
         self.mkt_idx = BOOK_POS - 1
-        self.mkt_time = self.mkt_orders[BOOK_POS-1][self.col_idx['timestamp']]
+        self.mkt_time = self.hist_orders[BOOK_POS-1][self.col_idx['timestamp']]
 
 
     def _send_to_market(self, order, is_mine):
@@ -154,7 +154,7 @@ class Gateway():
         """
         
         while (self.mkt_time <= stop_time):
-            mktorder = self.mkt_orders[self.mkt_idx+1]
+            mktorder = self.hist_orders[self.mkt_idx+1]
             self._send_historical_order(mktorder)
 
 
@@ -167,7 +167,7 @@ class Gateway():
         """
         
         # next historical order to be sent
-        mktorder = self.mkt_orders[self.mkt_idx+1]
+        mktorder = self.hist_orders[self.mkt_idx+1]
         # if I have queued orders
         if self.my_queue:
             # if my order reaches the market before the next historical order
