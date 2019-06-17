@@ -49,19 +49,19 @@ class Market():
         def_day = datetime(1970,1,1)
         
         if stat_dict == 'trades' or stat_dict is None:
-            self.trades = {key: np.zeros(1000)
+            self.trades = {key: np.full(1000, np.nan)
                            for key in self.__class__.stats}
             self.trades['timestamp'] = np.full(1000, def_day)
         if stat_dict == 'last_trades' or stat_dict is None:
-            self.last_trades = {key: np.zeros(10)
+            self.last_trades = {key: np.full(10, np.nan)
                                 for key in self.__class__.stats}
             self.last_trades['timestamp'] = np.full(10, def_day)
         if stat_dict == 'my_trades' or stat_dict is None:
-            self.my_trades = {key: np.zeros(1000)
+            self.my_trades = {key: np.full(1000, np.nan)
                               for key in self.__class__.my_stats}
             self.my_trades['timestamp'] = np.full(1000, def_day)
         if stat_dict == 'my_last_trades' or stat_dict is None:
-            self.my_last_trades = {key: np.zeros(10)
+            self.my_last_trades = {key: np.full(10,np.nan)
                                    for key in self.__class__.my_stats}
             self.my_last_trades['timestamp'] = np.full(10, def_day)
     
@@ -116,6 +116,31 @@ class Market():
             return self.my_cumvol/self.cumvol
         else:
             return 0
+        
+    @property
+    def trades_vol(self):        
+        return self.trades['vol'][:self.ntrds]
+    
+    @property
+    def trades_px(self):        
+        return self.trades['price'][:self.ntrds]
+    
+    @property
+    def trades_time(self):        
+        return self.trades['timestamp'][:self.ntrds]
+    
+    @property
+    def my_trades_vol(self):        
+        return self.my_trades['vol'][:self.my_ntrds]
+    
+    @property
+    def my_trades_px(self):        
+        return self.my_trades['price'][:self.my_ntrds]
+    
+    @property
+    def my_trades_time(self):        
+        return self.my_trades['timestamp'][:self.my_ntrds]
+
         
     def get(self, uid):
         """  Get market order by uid
@@ -533,7 +558,7 @@ class Market():
         while(px_found<n_px):      
             nextpx = self.get_new_price(next_baskpx,1)
             next_baskpx = nextpx
-            if next_baskpx in self._asks.book[nextpx]:                
+            if next_baskpx in self._asks.book:                
                 pasks[px_found] = nextpx
                 px_found += 1
             else:

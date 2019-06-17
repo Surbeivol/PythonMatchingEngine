@@ -12,7 +12,7 @@ You can find more info and the corresponding tick size tables in:
 
 Or googling by:
     
-    "MiFID II tick size regime"
+    MiFID II tick size regime
 
 These functions build a price dictionary that will help us obtaining
 the corresponding tick size for a product and also obtain a new price based
