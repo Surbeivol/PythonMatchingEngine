@@ -126,6 +126,37 @@ class Gateway():
         else:
             raise ValueError(f'Unexpected ordtype: {ord_type}')
             
+    
+    def move_n_seconds(self, n_seconds):
+        """ 
+        """
+        
+        stop_time = self.mkt_time + timedelta(0, n_seconds)
+        
+        while (self.mkt_time<=stop_time):
+            self.tick()
+        
+        self.mkt_time = stop_time
+
+
+    def _send_historical_order(self, mktorder):
+        self.mkt_idx += 1        
+        self._send_to_market(mktorder, is_mine=False)
+        self.mkt_time = mktorder[self.col_idx['timestamp']]
+
+
+    def move_until(self, stop_time):
+        """ 
+        
+        Params:
+            stop_time (datetime):         
+                
+        """
+        
+        while (self.mkt_time <= stop_time):
+            mktorder = self.mkt_orders[self.mkt_idx+1]
+            self._send_historical_order(mktorder)
+
 
     def tick(self):
         """ Move the market forward one tick (process next order)
@@ -147,9 +178,7 @@ class Gateway():
                 return
         
         # otherwise sent next historical order
-        self.mkt_idx += 1        
-        self._send_to_market(mktorder, is_mine=False)
-        self.mkt_time = mktorder[self.col_idx['timestamp']]
+        self._send_historical_order(mktorder)
 
         
     def queue_my_new(self, is_buy, qty, price):

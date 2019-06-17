@@ -51,7 +51,8 @@ pov_algo = SimplePOV(is_buy=True, target_pov=0.2, lmtpx=np.Inf,
                        qty=int(1e7), sweep_max=5)
 
 t = time.time()
-while (not pov_algo.done) and (gtw.mkt_idx < gtw.mkt_nord-1):        
+mkt_nord = gtw.mkt_nord-1
+while (not pov_algo.done) and (gtw.mkt_idx < mkt_nord):        
     pov_algo.eval_and_act(gtw)
     gtw.tick()    
 print(time.time()-t)
