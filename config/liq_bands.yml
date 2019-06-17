@@ -1,0 +1,37 @@
+# Spanish Stock Exchange Tickers and their corresponding 
+# MiFID II tick-size regime liquidity bands for 2019
+# TODO: include date from and to, to deal with changes in liquidity bands
+ana: band4
+acx: band5
+acs: band5
+aena: band5
+ams: band5
+mts: band6
+bbva: band6
+sab: band5
+san: band6
+bkia: band5
+bkt: band5
+cabk: band5
+clnx: band5
+cie: band4
+eng: band5
+enc: band4
+ele: band5
+fer: band5
+grf: band5
+iag: band5
+ibe: band5
+itx: band5
+idr: band4
+col: band4
+map: band5
+tl5: band5
+mel: band4
+mrl: band4
+ntgy: band5
+ree: band5
+sgre: band5
+tre: band4
+tef: band6
+vis: band4
