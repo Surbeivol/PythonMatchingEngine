@@ -18,8 +18,8 @@ class Market():
     ticker_bands = Configuration('./config/liq_bands.yml').config
     max_impact = 20
     px_idxs, prices, max_tick = get_band_dicts([4,5,6])
-    stats = ['price', 'vol', 'agg_ord', 'pas_ord', 'timestamp']
-    my_stats = ['price','vol','my_uid', 'timestamp']
+    stats = ['price', 'vol', 'agg_ord', 'pas_ord', 'buy_init', 'timestamp']
+    my_stats = ['price','vol','my_uid', 'buy_init', 'timestamp']
     
     def __init__(self, ticker):
         band = self.__class__.ticker_bands[ticker]
@@ -90,6 +90,22 @@ class Market():
             return None
         else:
             return self._asks.best.price, self._asks.best.vol
+        
+    # Best Bid    
+    @property    
+    def bbidpx(self):
+        if self._bids.best is None:
+            return None
+        else:
+            return self._bids.best.price
+    
+    # Best ask
+    @property
+    def baskpx(self):
+        if self._asks.best is None:
+            return None
+        else:
+            return self._asks.best.price
     
     def compute_vwap(self, trades):
             prices = np.array(trades['price']) 
@@ -126,6 +142,10 @@ class Market():
         return self.trades['price'][:self.ntrds]
     
     @property
+    def trades_buy_init(self):        
+        return self.trades['buy_init'][:self.ntrds]
+    
+    @property
     def trades_time(self):        
         return self.trades['timestamp'][:self.ntrds]
     
@@ -136,6 +156,10 @@ class Market():
     @property
     def my_trades_px(self):        
         return self.my_trades['price'][:self.my_ntrds]
+    
+    @property
+    def my_trades_buy_init(self):        
+        return self.my_trades['buy_init'][:self.my_ntrds]
     
     @property
     def my_trades_time(self):        
@@ -441,7 +465,8 @@ class Market():
             turn = trdqty * price
             self.cumvol += trdqty
             self.cumturn += turn
-            stats = [price, trdqty, Order.uid, best_uid, Order.timestamp]
+            stats = [price, trdqty, Order.uid, best_uid, Order.is_buy,
+                     Order.timestamp]
             self.update_last_trades(stats=stats,pos=n_newtrd)
             n_newtrd += 1
             
@@ -451,7 +476,8 @@ class Market():
                 if restart_my_last_trades:
                     self.create_stats_dict(stat_dict='my_last_trades')
                     restart_my_last_trades = False
-                my_stats = [price, trdqty, my_uid, Order.timestamp]
+                my_stats = [price, trdqty, my_uid, Order.is_buy,
+                            Order.timestamp]
                 self.update_my_last_trades(my_stats,pos=n_my_newtrd)
                 n_my_newtrd += 1
                 my_trade = False

@@ -277,8 +277,8 @@ class Gateway():
         return self.mkt_time + timedelta(0, 0, self.latency)
 
 
-    def plot(self):
-        trades = pd.DataFrame(self.mkt.trades)
+
+        
         
         
         

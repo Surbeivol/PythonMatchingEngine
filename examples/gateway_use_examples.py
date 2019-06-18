@@ -53,6 +53,7 @@ gtw.mkt.bask
 # Check if there were any trades so far
 gtw.mkt.trades_vol
 gtw.mkt.trades_px
+gtw.mkt.trades_buy_init # buy initiated trade => aggressive buy 
 gtw.mkt.trades_time
 
 # Check market cummulative traded volume
