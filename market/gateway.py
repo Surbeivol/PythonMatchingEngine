@@ -82,7 +82,7 @@ class Gateway():
         self.my_last_uid = 0 
 
         # load historical orders from csv file
-        session = f'../data/orders-{ticker}-{date}.csv'
+        session = f'./data/orders-{ticker}-{date}.csv'
         csv = pd.read_csv(session, sep=';', float_precision='round_trip')
         csv['timestamp'] = pd.to_datetime(csv['timestamp'])
 

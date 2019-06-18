@@ -13,8 +13,8 @@ import numpy as np
 import pandas as pd
 import pdb
 
-TICKER_BANDS = Configuration('../config/liq_bands.yml').config
-AVG_TRANSACTS = Configuration('../config/avg_band_transacts.yml').config
+TICKER_BANDS = Configuration('./config/liq_bands.yml').config
+AVG_TRANSACTS = Configuration('./config/avg_band_transacts.yml').config
 PX_IDXS, PRICES, MAX_TICK = get_band_dicts([4,5,6])
 STATS = ['price', 'vol', 'agg_ord', 'pas_ord', 'timestamp']
 MY_STATS = ['price','vol','my_uid', 'timestamp']

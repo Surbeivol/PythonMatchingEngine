@@ -5,8 +5,7 @@ Created on Sat Jun 15 12:59:42 2019
 
 @author: paco
 """
-import sys
-sys.path.append('../')
+
 import time
 import pdb
 import numpy as np
@@ -29,7 +28,7 @@ gtw = Gateway(ticker='ana',
 btb = BuyTheBid(1000000, 1)
 
 t = time.time()
-while (not btb.done) and (gtw.mkt_idx < gtw.mkt_nord-1):        
+while (not btb.done) and (gtw.mkt_time < gtw.end_time):        
     
     btb.eval_and_act(gtw)
     gtw.tick()
