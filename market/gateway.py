@@ -100,6 +100,7 @@ class Gateway():
         self.mkt_idx = BOOK_POS - 1
         self.mkt_time = self.hist_orders[BOOK_POS-1][self.col_idx['timestamp']]
 
+    
 
     def _send_to_market(self, order, is_mine):
         """ Send an order/modif/cancel to the market
