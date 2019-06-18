@@ -5,7 +5,8 @@ Created on Sat Jun 15 12:59:42 2019
 
 @author: paco
 """
-
+import sys
+sys.path.append('../')
 import time
 import pdb
 import numpy as np
@@ -29,6 +30,7 @@ btb = BuyTheBid(1000000, 1)
 
 t = time.time()
 while (not btb.done) and (gtw.mkt_idx < gtw.mkt_nord-1):        
+    
     btb.eval_and_act(gtw)
     gtw.tick()
     
@@ -40,20 +42,25 @@ print(time.time()-t)
 # TEST SIMPLE POV ALGO
 # =============================================================================
 
-gtw = Gateway(ticker='san',
+gtw = Gateway(ticker='ana',
              year=2019,
              month=5,
-             day=23,
+             day=21,
+             start_h=14,
+             end_h=16,
              latency=20000)
-    
 
 pov_algo = SimplePOV(is_buy=True, target_pov=0.2, lmtpx=np.Inf,
                        qty=int(1e7), sweep_max=5)
 
 t = time.time()
 mkt_nord = gtw.mkt_nord-1
-while (not pov_algo.done) and (gtw.mkt_idx < mkt_nord):        
-    pov_algo.eval_and_act(gtw)
-    gtw.tick()    
+while (not pov_algo.done) and (gtw.mkt_time < gtw.end_time):        
+    ord_in_queue = pov_algo.eval_and_act(gtw)
+    if ord_in_queue:  
+        #gtw.tick()
+        gtw.move_n_seconds(n_seconds=1)
+    else:
+        gtw.tick()
+        
 print(time.time()-t)
-

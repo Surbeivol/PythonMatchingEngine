@@ -176,14 +176,17 @@ class SimplePOV():
         
         if gtw.mkt.my_cumvol >= self.qty:
             self.done = True
-            return
+            return False
         
         if gtw.mkt.my_pov < self.target_pov:
             target_vol = int(gtw.mkt.cumvol * self.target_pov) - gtw.mkt.my_cumvol
             next_vol = min(self.qty-gtw.mkt.my_cumvol, target_vol)            
             gtw.queue_my_new(is_buy=self.is_buy,
                             qty=next_vol,
-                            price=self._target_px(gtw))        
+                            price=self._target_px(gtw))
+            return True
+        else:
+            return False
         
     
     
