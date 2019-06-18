@@ -186,21 +186,26 @@ class SimplePOV():
                             price=self._target_px(gtw))        
         
     
+    
+class VTnewPOV():
+    def __init__(self, target_pov, lmtpx, qty, min_child, start_time,
+                 end_time, max_delay, max_pos_exec, max_rep_send,
+                 max_tick_mov, min_time_bt_ord, min_time_bt_rep,
+                 grace_start_seconds, secs_child_order_alive_end_time,
+                 gtw):
+        self.target_pov = target_pov        
+        self.lmtpx = lmtpx
+        self.qty = qty        
+        self.leaves_qty = qty
+        self.pov = 0
+        self.min_child = min_child
+        self.start_time = start_time
+        self.end_time = end_time
+        self.max_delay = max_delay
+        self.max_pos_exec = max_pos_exec
+        self.max_rep_send = max_rep_send
         
-
-
-
-
-#class POV():
-#    def __init__(self, target_pov, lmtpx, qty, min_child):
-#        self.target_pov = target_pov
-#from gateway import Gateway
-#from algorithms import BuyTheBid, SimplePOV
-#        self.lmtpx = lmtpx
-#        self.qty = qty
-#        self.leaves_qty = qty
-#        self.pov = 0
-#        self.min_child = min_child
+        
         
     
         
