@@ -24,20 +24,23 @@ gtw = Gateway(ticker='san',
              year=2019,
              month=5,
              day=23,
+             start_h=9,
+             end_h=10,
              latency=20000)
     
 
 pov_algo = SimplePOV(is_buy=True, target_pov=0.2, lmtpx=np.Inf,
-                       qty=int(1e7), sweep_max=5)
+                       qty=int(1e6), sweep_max=3)
+
+
 
 hist_bidask = list()
 t = time.time()
 mkt_nord = gtw.mkt_nord-1
-while (not pov_algo.done) and (gtw.mkt_idx < mkt_nord):        
-    pov_algo.eval_and_act(gtw)
+while (not pov_algo.done) and (gtw.mkt_time < gtw.stop_time):        
+    hist_bidask.append([gtw.mkt.bbidpx, gtw.mkt.baskpx, gtw.mkt_time])
+    pov_algo.eval_and_act(gtw)        
     gtw.tick()    
-    hist_bidask.append([gtw.mkt.bbidpx,
-                        gtw.mkt.baskpx, gtw.mkt_time])    
 print(time.time()-t)
 
 
@@ -55,10 +58,11 @@ my_trades.set_index(my_trades.timestamp, inplace=True)
 
 plt.figure(num=1, figsize=(20, 10))
 start_t = bidask.index[0]
-
+win_size = 120
+win_move = 20
 
 for i in range(50):
-    end_t = start_t + timedelta(0,60)    
+    end_t = start_t + timedelta(0,win_size)    
     subbidask = bidask.loc[start_t:end_t]
     subtrades = trades.loc[start_t:end_t]
     mysubtrades = my_trades.loc[start_t:end_t]
@@ -69,8 +73,9 @@ for i in range(50):
     plt.plot(subbidask.bid, color=greenc, label='bid1')
     plt.plot(subbidask.ask, color=redc, label='ask1')
     
-    idx_buy_init = np.where(subtrades.buy_init)
-    idx_sell_init = np.where(np.logical_not(subtrades.buy_init))
+    idx_buy_init = np.where(subtrades.buy_init * (subtrades.agg_ord > 0))
+    idx_sell_init = np.where(np.logical_not(subtrades.buy_init) * \
+                             (subtrades.agg_ord > 0))
     buy_init_trd = subtrades.iloc[idx_buy_init]['price']
     sell_init_trd = subtrades.iloc[idx_sell_init]['price']
     
@@ -80,19 +85,19 @@ for i in range(50):
     my_sell_init_trd = mysubtrades.iloc[idx_my_sell_init]['price']
     
     plt.plot(buy_init_trd, color=greenc, linestyle=' ', marker='^', 
-             markersize=10, label='aggbuy')
+             markersize=12, label='aggbuy')
     plt.plot(sell_init_trd, color=redc, linestyle=' ', marker='v', 
-             markersize=10, label='aggsell')
+             markersize=12, label='aggsell')
     
     plt.plot(my_buy_init_trd, color='blue', linestyle=' ', marker='^', 
-             markersize=10, label='aggbuy')
+             markersize=7, label='aggbuy')
     plt.plot(my_sell_init_trd, color=redc, linestyle=' ', marker='v', 
-             markersize=10, label='aggsell')
+             markersize=7, label='aggsell')
     
     plt.legend()
     plt.show(block=False)
     
     input("Click to advance")
     
-    start_t += timedelta(0,5) 
+    start_t += timedelta(0, win_move) 
     plt.clf()

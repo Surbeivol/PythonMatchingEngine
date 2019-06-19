@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from tqdm import tqdm
 from numba import jit
 from collections import deque, namedtuple
+import pdb
 
 class Gateway():
     """ Creates an empty Python Matching Engine (market simulator) and injects 
@@ -60,11 +61,17 @@ class Gateway():
                 
     """
     
-    def __init__(self, ticker, year, month, day, latency):
+    def __init__(self, ticker, year, month, day, latency,
+                 start_h=9, end_h=17.5):
+        
         self.ticker = ticker
         self.year = year
         self.month = month
         self.day = day
+        start_secs = int(start_h * 3600)
+        end_secs = int(end_h * 3600)
+        start_time = datetime(year, month, day) + timedelta(0, start_secs)
+        end_time = datetime(year, month, day) + timedelta(0, end_secs)
         self.latency = latency
         self.my_queue = deque()
         self.mkt_idx = 0
@@ -74,9 +81,7 @@ class Gateway():
         self.OrdTuple = namedtuple('Order',
                                    'ordtype uid is_buy qty price timestamp')
         self.my_last_uid = 0 
-        # book positions (bid+ask) available in historical data
-        BOOK_POS = 20
-        
+
         # load historical orders from csv file
         session = f'./data/orders-{ticker}-{date}.csv'
         csv = pd.read_csv(session, sep=';', float_precision='round_trip')
@@ -91,74 +96,94 @@ class Gateway():
         self.col_idx = {}
         for col_name in csv.columns:
             self.col_idx.update({col_name:np.argmax(columns==col_name)})
-
+            
+        last_ord_time = self.hist_orders[-1][self.col_idx['timestamp']]
+        self.end_time = min(last_ord_time, end_time)
+        self.stop_time = self.end_time
+        
+        # book positions (bid+ask) available in historical data
+        BOOK_POS = 20
         # send first 20 orders that will compose first market snapshot
         # this is the real orderbook that was present when the market opened
         # right after the opening auction
-        for ord_idx in range(BOOK_POS):   
-            self._send_to_market(self.hist_orders[ord_idx], is_mine=False)
-        self.mkt_idx = BOOK_POS - 1
-        self.mkt_time = self.hist_orders[BOOK_POS-1][self.col_idx['timestamp']]
 
-    
+        for ord_idx in range(BOOK_POS):
+            mktorder = self.hist_orders[self.mkt_idx]
+            self._send_historical_order(mktorder)
+        
+        self.move_until(start_time)
 
     def _send_to_market(self, order, is_mine):
         """ Send an order/modif/cancel to the market
-        
-            Args:
                 order (ndarray): order to be sent
                 is_mine (bool): False if historical, True if user sent
         """
         
         
         ord_type = order[self.col_idx['ordtype']]
-        if ord_type == "new":
-            self.mkt.send(is_buy=order[self.col_idx['is_buy']],
-                            qty=order[self.col_idx['qty']],
-                            price=order[self.col_idx['price']],
-                            uid=order[self.col_idx['uid']],
-                            is_mine=is_mine,
-                            timestamp=order[self.col_idx['timestamp']])
-        elif ord_type == "cancel":
-            self.mkt.cancel(uid=order[self.col_idx['uid']])
-        elif ord_type == "modif":
-            self.mkt.modif(uid=order[self.col_idx['uid']],                           
-                           new_qty=order[self.col_idx['qty']])
+        timestamp = order[self.col_idx['timestamp']]
+#        mkt_open = self.check_mkt_open(timestamp)
+        if self.check_ord_in_time(timestamp):
+            self.update_mkt_time(timestamp)
+            if ord_type == "new":
+                self.mkt.send(is_buy=order[self.col_idx['is_buy']],
+                                qty=order[self.col_idx['qty']],
+                                price=order[self.col_idx['price']],
+                                uid=order[self.col_idx['uid']],
+                                is_mine=is_mine,
+                                timestamp=timestamp)
+            elif ord_type == "cancel":
+                self.mkt.cancel(uid=order[self.col_idx['uid']])
+            elif ord_type == "modif":
+                self.mkt.modif(uid=order[self.col_idx['uid']],                           
+                               new_qty=order[self.col_idx['qty']])
+            else:
+                raise ValueError(f'Unexpected ordtype: {ord_type}')
+            return
         else:
-            raise ValueError(f'Unexpected ordtype: {ord_type}')
-            
+            self.update_mkt_time(self.stop_time)
+            if not is_mine:
+                self.mkt_idx -= 1
+            return
+    
+    def update_mkt_time(self, new_mkt_time):
+        
+        self.mkt_time = new_mkt_time
     
     def move_n_seconds(self, n_seconds):
         """ 
-        """
+        """   
+        self.stop_time = min(self.mkt_time + timedelta(0, n_seconds),
+                             self.end_time)
         
-        stop_time = self.mkt_time + timedelta(0, n_seconds)
-        
-        while (self.mkt_time<=stop_time):
+        while (self.mkt_time < self.stop_time):
             self.tick()
         
-        self.mkt_time = stop_time
-
+        self.stop_time = self.end_time
+    
+        
+    def check_ord_in_time(self, ord_timestamp):
+        """
+        """
+        return (ord_timestamp < self.stop_time)
 
     def _send_historical_order(self, mktorder):
-        self.mkt_idx += 1        
+        
+        self.mkt_idx += 1
         self._send_to_market(mktorder, is_mine=False)
-        self.mkt_time = mktorder[self.col_idx['timestamp']]
-
 
     def move_until(self, stop_time):
-        """ 
         
+        """ 
         Params:
             stop_time (datetime):         
                 
         """
         
         while (self.mkt_time <= stop_time):
-            mktorder = self.hist_orders[self.mkt_idx+1]
+            mktorder = self.hist_orders[self.mkt_idx]
             self._send_historical_order(mktorder)
-
-
+            
     def tick(self):
         """ Move the market forward one tick (process next order)
         
@@ -168,20 +193,20 @@ class Gateway():
         """
         
         # next historical order to be sent
-        mktorder = self.hist_orders[self.mkt_idx+1]
+
+        mktorder = self.hist_orders[self.mkt_idx]
+
         # if I have queued orders
         if self.my_queue:
             # if my order reaches the market before the next historical order
             if self.my_queue[0].timestamp < mktorder[self.col_idx['timestamp']]:
                 my_order = self.my_queue.popleft()
                 self._send_to_market(my_order, is_mine=True)
-                self.mkt_time = my_order[self.col_idx['timestamp']]
                 return
         
         # otherwise sent next historical order
         self._send_historical_order(mktorder)
-
-        
+                    
     def queue_my_new(self, is_buy, qty, price):
         """ Queue a user new order to be sent to the market when time is due 
         

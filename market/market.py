@@ -13,21 +13,27 @@ import numpy as np
 import pandas as pd
 import pdb
 
+TICKER_BANDS = Configuration('./config/liq_bands.yml').config
+AVG_TRANSACTS = Configuration('./config/avg_band_transacts.yml').config
+PX_IDXS, PRICES, MAX_TICK = get_band_dicts([4,5,6])
+STATS = ['price', 'vol', 'agg_ord', 'pas_ord','buy_init' , 'timestamp']
+MY_STATS = ['price','vol','my_uid', 'buy_init',  'timestamp']
+    
 class Market():
+
     
-    ticker_bands = Configuration('./config/liq_bands.yml').config
-    max_impact = 20
-    px_idxs, prices, max_tick = get_band_dicts([4,5,6])
-    stats = ['price', 'vol', 'agg_ord', 'pas_ord', 'buy_init', 'timestamp']
-    my_stats = ['price','vol','my_uid', 'buy_init', 'timestamp']
-    
-    def __init__(self, ticker):
-        band = self.__class__.ticker_bands[ticker]
+    def __init__(self, ticker, max_impact=20):
+        band = TICKER_BANDS[ticker]
 #        self.band_ticks = self.__class__.band_ticks[band]
-        self.band_idxs = self.__class__.px_idxs[band]
-        self.band_prices = self.__class__.prices[band]
-        self.max_tick = self.__class__.max_tick[band]
-        self.max_impact = self.__class__.max_impact
+        self.band_idxs = PX_IDXS[band]
+        self.band_prices = PRICES[band]
+        self.max_tick = MAX_TICK[band]
+        self.init_size = int(AVG_TRANSACTS[band])
+        self.inc = int(max(0.1 * AVG_TRANSACTS[band], 10))
+        self.low_inc = 10
+        # default day
+        self.def_day = datetime(1970,1,1)
+        self.max_impact = max_impact
         self._bids = Bids()
         self._asks = Asks()
         self.create_stats_dict()
@@ -43,37 +49,53 @@ class Market():
         self.my_cumturn = 0.
         self.cum_agg_effect = 0
         
-    def create_stats_dict(self, stat_dict = None):
-        
-        #default day
-        def_day = datetime(1970,1,1)
+    def create_stats_dict(self, stat_dict=None):
         
         if stat_dict == 'trades' or stat_dict is None:
-            self.trades = {key: np.full(1000, np.nan)
-                           for key in self.__class__.stats}
-            self.trades['timestamp'] = np.full(1000, def_day)
+            self.trades = {
+                key: np.zeros(self.inc)
+                for key in STATS
+            }
+            self.trades['timestamp'] = np.full(self.inc,
+                                               self.def_day)
+            
         if stat_dict == 'last_trades' or stat_dict is None:
-            self.last_trades = {key: np.full(10, np.nan)
-                                for key in self.__class__.stats}
-            self.last_trades['timestamp'] = np.full(10, def_day)
+            self.last_trades = {
+                key: np.zeros(self.low_inc)
+                for key in STATS
+            }
+            self.last_trades['timestamp'] = np.full(self.low_inc,
+                                                    self.def_day)
+            
         if stat_dict == 'my_trades' or stat_dict is None:
-            self.my_trades = {key: np.full(1000, np.nan)
-                              for key in self.__class__.my_stats}
-            self.my_trades['timestamp'] = np.full(1000, def_day)
+            self.my_trades = {
+                key: np.zeros(self.inc)
+                for key in MY_STATS
+            }
+            self.my_trades['timestamp'] = np.full(self.inc,
+                                                  self.def_day)
+            
         if stat_dict == 'my_last_trades' or stat_dict is None:
-            self.my_last_trades = {key: np.full(10,np.nan)
-                                   for key in self.__class__.my_stats}
-            self.my_last_trades['timestamp'] = np.full(10, def_day)
+            self.my_last_trades = {
+                key: np.zeros(self.low_inc)
+                for key in MY_STATS
+            }
+            self.my_last_trades['timestamp'] = np.full(self.low_inc,
+                                                       self.def_day)
     
     def inc_dict_size(self, stat_dict, inc):
         
-#       return {key: np.hstack([stat_dict[key],np.zeros(1000)]) for key in stat_dict.keys() if key != 'timestamp' else np.hstack([stat_dict[key],np.full(1000,datetime(1970,1,1))])}
-    
-        return ({(key):(np.hstack([stat_dict[key],np.zeros(inc)]) 
-                          if key != 'timestamp' 
-                          else np.hstack([stat_dict[key],
-                                          np.full(inc,datetime(1970,1,1,))]))
-                        for key in stat_dict.keys()})
+        #default array
+        def_arr = np.zeros(inc)
+        #default day
+        def_day = np.full(inc, self.def_day)
+        
+        new_dict = {(key):(np.hstack([stat_dict[key], def_arr]) 
+            if key != 'timestamp' else np.hstack([stat_dict[key], def_day]))
+            for key in stat_dict.keys()
+        }
+        
+        return new_dict
     
     # Best Bid    
     @property    
@@ -108,9 +130,9 @@ class Market():
             return self._asks.best.price
     
     def compute_vwap(self, trades):
-            prices = np.array(trades['price']) 
-            vol_exe = np.array(trades['vol'])
-            return np.sum(prices * vol_exe) / np.sum(vol_exe)
+        
+            return (np.sum(trades['price'] * trades['vol']) 
+                    / np.sum(trades['vol']))
     
     @property
     def vwap(self):
@@ -335,55 +357,55 @@ class Market():
 #        self.mktvwap = self.cumefe/self.cumvol 
     
     def update_last_trades(self, stats, pos):
-        for i in range(len(self.__class__.stats)):
-#            self.last_trades[self.__class__.stats[i]].append(stats[i])
+        
+        for i in range(len(STATS)):
+            
             try:
-                self.last_trades[self.__class__.stats[i]][pos
-                                    ] = stats[i]
+                self.last_trades[STATS[i]][pos] = stats[i]
             except IndexError:
                 self.last_trades = self.inc_dict_size(self.last_trades,
-                                                      inc=10)
-                self.last_trades[self.__class__.stats[i]][pos
-                                    ] = stats[i]
+                                                      inc=self.low_inc)
+                self.last_trades[STATS[i]][pos] = stats[i]
     
     def update_my_last_trades(self, my_stats, pos):
-        for i in range(len(self.__class__.my_stats)):
-#            self.my_last_trades[self.__class__.my_stats[i]].append(my_stats[i])
+        
+        for i in range(len(MY_STATS)):
+            
             try:
-                self.my_last_trades[self.__class__.my_stats[i]][pos
-                                       ] = my_stats[i]
+                self.my_last_trades[MY_STATS[i]][pos] = my_stats[i]
             except IndexError:
                 self.my_last_trades = self.inc_dict_size(self.my_last_trades,
-                                                         inc=10)
-                self.my_last_trades[self.__class__.my_stats[i]][pos
-                                       ] = my_stats[i]
+                                                         inc=self.low_inc)
+                self.my_last_trades[MY_STATS[i]][pos] = my_stats[i]
     
     def update_trades(self, pos):
+        
         end = self.ntrds + pos
-        for stat in self.__class__.stats:
-#            self.trades[stat] += self.last_trades[stat]
+        for stat in STATS:
+
             end = self.ntrds + pos
             if end < len(self.trades[stat]):
                 self.trades[stat][self.ntrds:end
                     ] = self.last_trades[stat][:pos]
             else:
                 self.trades = self.inc_dict_size(self.trades,
-                                                 inc=1000)
+                                                 inc=self.inc)
                 self.trades[stat][self.ntrds:end
                     ] = self.last_trades[stat][:pos]
                 
         self.ntrds += pos
             
     def update_my_trades(self, pos):
+        
         end = self.my_ntrds + pos
-        for my_stat in self.__class__.my_stats:
+        for my_stat in MY_STATS:
 #            self.my_trades[my_stat] += self.my_last_trades[my_stat]
             if end < len(self.my_trades[my_stat]):
                 self.my_trades[my_stat][self.my_ntrds:end
                     ] = self.my_last_trades[my_stat][:pos]
             else:
                 self.my_trades = self.inc_dict_size(self.my_trades,
-                                                    inc=1000)
+                                                    inc=self.inc)
                 self.my_trades[my_stat][self.my_ntrds:end
                     ] = self.my_last_trades[my_stat][:pos]
                 

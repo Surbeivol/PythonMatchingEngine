@@ -7,6 +7,7 @@ Created on Sat Jun 15 22:32:03 2019
 """
 
 import numpy as np
+import pdb
 from collections import deque
 
 
@@ -160,14 +161,22 @@ class SimplePOV():
         self.pov = 0.
         self.sweep_max = sweep_max
         self.done = False
+        self.uid = None
+        #♥self.min_qty = 1229
                 
 
     def _target_px(self, gtw):
         if self.is_buy:
-            max_px = gtw.mkt.get_new_price(gtw.mkt.bask[0], self.sweep_max)
+            if gtw.mkt.baskpx:
+                max_px = gtw.mkt.get_new_price(gtw.mkt.baskpx, self.sweep_max)
+            else:
+                max_px = gtw.mkt.get_new_price(gtw.mkt.bbidpx, self.sweep_max)
             target_px = min(self.lmtpx, max_px)
         else:
-            min_px = gtw.mkt.get_new_price(gtw.mkt.bbid[0], -self.sweep_max)            
+            if gtw.mkt.bbidpx:
+                min_px = gtw.mkt.get_new_price(gtw.mkt.bbidpx, -self.sweep_max)            
+            else:
+                min_px = gtw.mkt.get_new_price(gtw.mkt.baskpx, -self.sweep_max)            
             target_px = max(self.lmtpx, min_px)
         return target_px
         
@@ -178,17 +187,22 @@ class SimplePOV():
             self.done = True
             return False
         
+        if self.uid:
+            try:
+                gtw.ord_status(self.uid)
+            except KeyError:            
+                return 
+        
         if gtw.mkt.my_pov < self.target_pov:
             target_vol = int(gtw.mkt.cumvol * self.target_pov) - gtw.mkt.my_cumvol
+
             next_vol = min(self.qty-gtw.mkt.my_cumvol, target_vol)            
-            gtw.queue_my_new(is_buy=self.is_buy,
-                            qty=next_vol,
-                            price=self._target_px(gtw))        
-            return True
-        else:
-            return False
-        
-    
+            self.uid = gtw.queue_my_new(is_buy=self.is_buy,
+                                        qty=next_vol,
+                                        price=self._target_px(gtw))
+
+            
+
     
 class VTnewPOV():
     def __init__(self, target_pov, lmtpx, qty, min_child, start_time,
