@@ -197,6 +197,7 @@ class SimplePOV():
             target_vol = int(gtw.mkt.cumvol * self.target_pov) - gtw.mkt.my_cumvol
 
             next_vol = min(self.qty-gtw.mkt.my_cumvol, target_vol)            
+
             self.uid = gtw.queue_my_new(is_buy=self.is_buy,
                                         qty=next_vol,
                                         price=self._target_px(gtw))

@@ -59,6 +59,7 @@ hist_bidask = list()
 t = time.time()
 mkt_nord = gtw.mkt_nord-1
 
+
 while (not pov_algo.done) and (gtw.mkt_time < gtw.end_time):        
     ord_in_queue = pov_algo.eval_and_act(gtw)
     if ord_in_queue:  
@@ -67,6 +68,7 @@ while (not pov_algo.done) and (gtw.mkt_time < gtw.end_time):
     else:
         gtw.tick()
         
+
 print(time.time()-t)
 
 

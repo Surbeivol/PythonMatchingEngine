@@ -19,6 +19,7 @@ PX_IDXS, PRICES, MAX_TICK = get_band_dicts([4,5,6])
 STATS = ['price', 'vol', 'agg_ord', 'pas_ord','buy_init' , 'timestamp']
 MY_STATS = ['price','vol','my_uid', 'buy_init',  'timestamp']
     
+
 class Market():
 
     
