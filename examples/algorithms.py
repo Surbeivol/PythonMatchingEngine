@@ -17,15 +17,66 @@ class SimpleMarketMaker():
     in order to try to capture the spread.    
     """
     
-    def __ini__(self, max_pos, child_vol):
+    def __ini__(self, max_pos, child_vol, gtw):
         self.max_pos = max_pos
         self.child_vol = child_vol
         self.cur_pos = 0
+        self.bid_uid = None
+        self.ask_uid = None
+        self.idx_my_trades = 0
         
-    # TODO: complete
-    # make my_last_trades and last_trades available through properties
-    # make interactive plotting function available
+        bidpx, askpx = self._target_bid_ask(gtw)
+        
+        # send new quotes
+        self.bid_uid = gtw.queue_my_new(is_buy=True,
+                                    qty=self.child_vol,
+                                    price=bidpx)
+        self.ask_uid = gtw.queue_my_new(is_buy=False,
+                                    qty=new_qty,
+                                    price=askpx)
+    
+    
+            
+    def _target_bid_ask(self, gtw):
+        
+        if self.cur_pos > self.max_pos/2:
+            offset = -1            
+        elif self.cur_pos > -self.max_pos/2:
+            offset = 0
+        else:
+            offset = 1
+            
+        target_bid = gtw.mkt.get_new_price(gtw.mkt.bbidpx, offset)
+        target_ask = gtw.mkt.get_new_price(gtw.mkt.baskpx, offset)
+        
+        # NO AGGRESSIONS
+        bid_px = min(gtw.mkt.baskpx, target_bid)
+        ask_px = max(gtw.mkt.bidpx, target_ask)
+        
+        return bid_px, ask_px
+    
+    
+    def eval_and_act(self, gtw):
+        
+        # IF FLYING ORDERS, WAIT
+        try:
+            last_bid = self.ord_status(self.bid_uid)
+        except KeyError:
+            return
+            
+        try:
+            last_ask = self.ord_status(self.ask_uid)
+        except KeyError:
+            return
+    
 
+        if last_bid.leaves_qty == 0:
+            self.cur_pos += last_bid.qty
+            
+        if last_ask.leaves_qty == 0:
+            self.cur_pos -= last_ask.qty
+            
+        
 
 class BuyTheBid():
     """ This execution algorithm just places one oder at the market
@@ -54,10 +105,11 @@ class BuyTheBid():
         if self.leave_uid is None:
             self.send_new_child(gtw)
         else:
-            try:            
-                leave_ord = gtw.ord_status(self.leave_uid)
-            except KeyError:
+            if len(gtw.my_queue)>0:            
                 return
+            else:
+                leave_ord = gtw.ord_status(self.leave_uid)
+            
             
             # if my prev child order is filled
             if leave_ord['leavesqty'] == 0:
