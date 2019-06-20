@@ -24,7 +24,7 @@ import pandas as pd
 # RESTART MARKET
 # =============================================================================
 
-gtw = Gateway(ticker='san',
+gtw = Gateway(ticker='ana',
              year=2019,
              month=5,
              day=23,
@@ -34,21 +34,25 @@ gtw = Gateway(ticker='san',
     
 
 
-# =============================================================================
-# RUN SIMPLEPOV ALGO
-# =============================================================================
+btb = BuyTheBid(1000000, 1)
 
-
-pov_algo = SimplePOV(is_buy=True, target_pov=0.2, lmtpx=np.Inf,
-                       qty=int(1e6), sweep_max=3)
 
 
 hist_bidask = list()
+hist_leaves = list()
 t = time.time()
-mkt_nord = gtw.mkt_nord-1
-while (not pov_algo.done) and (gtw.mkt_time < gtw.stop_time):        
+
+while (not btb.done) and (gtw.mkt_time < gtw.stop_time):        
     hist_bidask.append([gtw.mkt.bbidpx, gtw.mkt.baskpx, gtw.mkt_time])
-    pov_algo.eval_and_act(gtw)        
+    if not gtw.flying_ord():    
+        try:
+            order = gtw.ord_status(btb.leave_uid)        
+            if order['leavesqty']>0:
+                hist_leaves.append([order['price'], gtw.mkt_time])
+        except:
+            pass
+        
+    btb.eval_and_act(gtw)        
     gtw.tick()    
 print(time.time()-t)
 
@@ -71,6 +75,9 @@ trades.set_index(trades.timestamp, inplace=True)
 my_trades = pd.DataFrame(gtw.mkt.my_trades).loc[:gtw.mkt.my_ntrds-1]
 my_trades.set_index(my_trades.timestamp, inplace=True)
 
+leaves = pd.DataFrame(hist_leaves, columns=['price', 'timestamp'])
+leaves.set_index(leaves.timestamp, inplace=True)
+
 # filter:
 
 plt.figure(num=1, figsize=(20, 10))
@@ -83,6 +90,7 @@ for i in range(200):
     subbidask = bidask.loc[start_t:end_t]
     subtrades = trades.loc[start_t:end_t]
     mysubtrades = my_trades.loc[start_t:end_t]
+    subleaves = leaves.loc[start_t:end_t]
     
     greenc = '#009900'
     redc = '#cc0000'
@@ -108,8 +116,11 @@ for i in range(200):
     
     plt.plot(my_buy_init_trd, color='blue', linestyle=' ', marker='^', 
              markersize=7, label='aggbuy')
-    plt.plot(my_sell_init_trd, color=redc, linestyle=' ', marker='v', 
+    plt.plot(my_sell_init_trd, color='blue', linestyle=' ', marker='v', 
              markersize=7, label='aggsell')
+    
+    plt.plot(subleaves.price, color='blue', linestyle=' ', marker='.', 
+             markersize=5, label='aggbuy')
     
     plt.legend()
     plt.show(block=False)

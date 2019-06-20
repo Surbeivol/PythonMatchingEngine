@@ -113,6 +113,9 @@ class Gateway():
         
         self.move_until(start_time)
 
+    def flying_ord(self):
+        return len(self.my_queue)>0
+
     def _send_to_market(self, order, is_mine):
         """ Send an order/modif/cancel to the market
                 order (ndarray): order to be sent
