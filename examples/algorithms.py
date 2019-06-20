@@ -276,6 +276,23 @@ class VTnewPOV():
         self.max_rep_send = max_rep_send
         
         
+class StopBuy():
+    def __init__(self, qty, stop_px, sweep_max=5):
+        self.qty=qty
+        self.stop_px=stop_px
+        self.uid = None
+        self.done = False        
+        self.sweep_max = sweep_max        
+        
+    def eval_and_act(self, gtw):
+        
+        target_px = gtw.mkt.get_new_price(self.stop_px, self.sweep_max)
+        if (gtw.mkt.last_trades['price'] >= self.stop_px).any():             
+            self.uid = gtw.queue_my_new(is_buy=True,
+                                            qty=self.qty,
+                                            price=target_px)        
+        
+            self.done = True        
         
     
         
