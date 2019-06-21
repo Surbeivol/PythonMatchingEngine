@@ -13,15 +13,14 @@ import numpy as np
 import pandas as pd
 import pdb
 
-TICKER_BANDS = Configuration('./config/liq_bands.yml').config
-AVG_TRANSACTS = Configuration('./config/avg_band_transacts.yml').config
+TICKER_BANDS = Configuration('../config/liq_bands.yml').config
+AVG_TRANSACTS = Configuration('../config/avg_band_transacts.yml').config
 PX_IDXS, PRICES, MAX_TICK = get_band_dicts([4,5,6])
-STATS = ['price', 'vol', 'agg_ord', 'pas_ord','buy_init' , 'timestamp']
-MY_STATS = ['price','vol','my_uid', 'buy_init',  'timestamp']
-    
+STATS = ['price', 'vol', 'agg_ord', 'pas_ord', 'timestamp']
+MY_STATS = ['price','vol','my_uid', 'timestamp']
 
-class Market():
 
+class Market:
     
     def __init__(self, ticker, max_impact=20):
         band = TICKER_BANDS[ticker]
@@ -41,6 +40,24 @@ class Market():
         # keeps track of all orders sent to the market
         # allows fast access of orders status by uid
         self._orders = dict()                
+        self.n_my_orders = 0
+        self.ntrds = 0
+        self.my_ntrds = 0
+        self.cumvol = 0
+        self.my_cumvol = 0
+        self.cumturn = 0.
+        self.my_cumturn = 0.
+        self.cum_agg_effect = 0
+    
+    def reset_mkt(self, reset_all):
+        
+        if reset_all:
+            
+            self._bids = Bids()
+            self._asks = Asks()
+            self.create_stats_dict()
+            self._orders = dict()
+                
         self.n_my_orders = 0
         self.ntrds = 0
         self.my_ntrds = 0
@@ -113,22 +130,6 @@ class Market():
             return None
         else:
             return self._asks.best.price, self._asks.best.vol
-        
-    # Best Bid    
-    @property    
-    def bbidpx(self):
-        if self._bids.best is None:
-            return None
-        else:
-            return self._bids.best.price
-    
-    # Best ask
-    @property
-    def baskpx(self):
-        if self._asks.best is None:
-            return None
-        else:
-            return self._asks.best.price
     
     def compute_vwap(self, trades):
         
@@ -165,10 +166,6 @@ class Market():
         return self.trades['price'][:self.ntrds]
     
     @property
-    def trades_buy_init(self):        
-        return self.trades['buy_init'][:self.ntrds]
-    
-    @property
     def trades_time(self):        
         return self.trades['timestamp'][:self.ntrds]
     
@@ -179,10 +176,6 @@ class Market():
     @property
     def my_trades_px(self):        
         return self.my_trades['price'][:self.my_ntrds]
-    
-    @property
-    def my_trades_buy_init(self):        
-        return self.my_trades['buy_init'][:self.my_ntrds]
     
     @property
     def my_trades_time(self):        
@@ -488,8 +481,7 @@ class Market():
             turn = trdqty * price
             self.cumvol += trdqty
             self.cumturn += turn
-            stats = [price, trdqty, Order.uid, best_uid, Order.is_buy,
-                     Order.timestamp]
+            stats = [price, trdqty, Order.uid, best_uid, Order.timestamp]
             self.update_last_trades(stats=stats,pos=n_newtrd)
             n_newtrd += 1
             
@@ -499,8 +491,7 @@ class Market():
                 if restart_my_last_trades:
                     self.create_stats_dict(stat_dict='my_last_trades')
                     restart_my_last_trades = False
-                my_stats = [price, trdqty, my_uid, Order.is_buy,
-                            Order.timestamp]
+                my_stats = [price, trdqty, my_uid, Order.timestamp]
                 self.update_my_last_trades(my_stats,pos=n_my_newtrd)
                 n_my_newtrd += 1
                 my_trade = False
