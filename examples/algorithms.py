@@ -7,9 +7,10 @@ Created on Sat Jun 15 22:32:03 2019
 """
 
 import numpy as np
-import pdb
 from collections import deque
-
+import pickle
+from ushape_and_stdord import StdordUshape
+import pdb
 
 class SimpleMarketMaker():
     """ Passive strategy that always has one buy and one sell 
@@ -17,66 +18,15 @@ class SimpleMarketMaker():
     in order to try to capture the spread.    
     """
     
-    def __ini__(self, max_pos, child_vol, gtw):
+    def __ini__(self, max_pos, child_vol):
         self.max_pos = max_pos
         self.child_vol = child_vol
         self.cur_pos = 0
-        self.bid_uid = None
-        self.ask_uid = None
-        self.idx_my_trades = 0
         
-        bidpx, askpx = self._target_bid_ask(gtw)
-        
-        # send new quotes
-        self.bid_uid = gtw.queue_my_new(is_buy=True,
-                                    qty=self.child_vol,
-                                    price=bidpx)
-        self.ask_uid = gtw.queue_my_new(is_buy=False,
-                                    qty=new_qty,
-                                    price=askpx)
-    
-    
-            
-    def _target_bid_ask(self, gtw):
-        
-        if self.cur_pos > self.max_pos/2:
-            offset = -1            
-        elif self.cur_pos > -self.max_pos/2:
-            offset = 0
-        else:
-            offset = 1
-            
-        target_bid = gtw.mkt.get_new_price(gtw.mkt.bbidpx, offset)
-        target_ask = gtw.mkt.get_new_price(gtw.mkt.baskpx, offset)
-        
-        # NO AGGRESSIONS
-        bid_px = min(gtw.mkt.baskpx, target_bid)
-        ask_px = max(gtw.mkt.bidpx, target_ask)
-        
-        return bid_px, ask_px
-    
-    
-    def eval_and_act(self, gtw):
-        
-        # IF FLYING ORDERS, WAIT
-        try:
-            last_bid = self.ord_status(self.bid_uid)
-        except KeyError:
-            return
-            
-        try:
-            last_ask = self.ord_status(self.ask_uid)
-        except KeyError:
-            return
-    
+    # TODO: complete
+    # make my_last_trades and last_trades available through properties
+    # make interactive plotting function available
 
-        if last_bid.leaves_qty == 0:
-            self.cur_pos += last_bid.qty
-            
-        if last_ask.leaves_qty == 0:
-            self.cur_pos -= last_ask.qty
-            
-        
 
 class BuyTheBid():
     """ This execution algorithm just places one oder at the market
@@ -105,11 +55,10 @@ class BuyTheBid():
         if self.leave_uid is None:
             self.send_new_child(gtw)
         else:
-            if len(gtw.my_queue)>0:            
-                return
-            else:
+            try:            
                 leave_ord = gtw.ord_status(self.leave_uid)
-            
+            except KeyError:
+                return
             
             # if my prev child order is filled
             if leave_ord['leavesqty'] == 0:
@@ -122,9 +71,7 @@ class BuyTheBid():
             elif leave_ord['price'] != gtw.mkt.bbid[0]:                
                 gtw.queue_my_cancel(uid=self.leave_uid)
                 self.send_new_child(gtw)
-
-
-    
+                
 
 class Pegged():
     
@@ -201,62 +148,84 @@ class Pegged():
     
 
 
-class SimplePOV():
+class SimplePOV(StdordUshape):
 
 
-    def __init__(self, is_buy, target_pov, lmtpx, qty, sweep_max):
-        self.is_buy = is_buy
-        self.target_pov = target_pov
-        self.lmtpx = lmtpx
-        self.qty = qty
+    def __init__(self, **kwargs):
+
+        super(SimplePOV, self).__init__(**kwargs)
+        self.is_buy = kwargs.get('is_buy')
+        self.target_pov = kwargs.get('target_pov')
+        self.lmtpx = kwargs.get('lmtpx')
+        self.qty = kwargs.get('qty')
+        self.min_vol = kwargs.get('min_vol')
+        self.n_seconds = kwargs.get('n_seconds')
         self.cumqty = 0
         self.pov = 0.
-        self.sweep_max = sweep_max
+        self.sweep_max = kwargs.get('sweep_max')
         self.done = False
-        self.uid = None
-        #♥self.min_qty = 1229
                 
-
     def _target_px(self, gtw):
+        
         if self.is_buy:
-            if gtw.mkt.baskpx:
-                max_px = gtw.mkt.get_new_price(gtw.mkt.baskpx, self.sweep_max)
+            if gtw.mkt.bask:
+                max_px = gtw.mkt.get_new_price(gtw.mkt.bask[0],
+                                               self.sweep_max)
             else:
-                max_px = gtw.mkt.get_new_price(gtw.mkt.bbidpx, self.sweep_max)
+                max_px = gtw.mkt.get_new_price(gtw.mkt.bbid[0],
+                                               self.sweep_max)
             target_px = min(self.lmtpx, max_px)
         else:
-            if gtw.mkt.bbidpx:
-                min_px = gtw.mkt.get_new_price(gtw.mkt.bbidpx, -self.sweep_max)            
+            if gtw.mkt.bask:
+                min_px = gtw.mkt.get_new_price(gtw.mkt.bbid[0],
+                                               -self.sweep_max)
             else:
-                min_px = gtw.mkt.get_new_price(gtw.mkt.baskpx, -self.sweep_max)            
+                min_px = gtw.mkt.get_new_price(gtw.mkt.bbid[0],
+                                               -self.sweep_max) 
             target_px = max(self.lmtpx, min_px)
+            
         return target_px
         
-
     def eval_and_act(self, gtw):                    
         
-        if gtw.mkt.my_cumvol >= self.qty:
-            self.done = True
-            return False
+        wait = False
+        vol_rest = self.qty - gtw.mkt.my_cumvol
         
-        if self.uid:
-            try:
-                gtw.ord_status(self.uid)
-            except KeyError:            
-                return 
-        
-        if gtw.mkt.my_pov < self.target_pov:
-            target_vol = int(gtw.mkt.cumvol * self.target_pov) - gtw.mkt.my_cumvol
-
-            next_vol = min(self.qty-gtw.mkt.my_cumvol, target_vol)            
-
-            self.uid = gtw.queue_my_new(is_buy=self.is_buy,
-                                        qty=next_vol,
-                                        price=self._target_px(gtw))
-
+        if vol_rest > 0:
+            if vol_rest < self.min_vol:
+                gtw.queue_my_new(is_buy=self.is_buy,
+                                 qty=vol_rest,
+                                 price=self._target_px(gtw))
+                wait = True
+                
+            else:
+                if gtw.mkt.my_pov < self.target_pov:
+                    target_vol = int(gtw.mkt.cumvol * self.target_pov)
+                    deficit = target_vol - gtw.mkt.my_cumvol
+                    if deficit >= self.min_vol:
+                        child_vol = self.std_ord(gtw.mkt_time, rnd=True)
+                        if child_vol >= self.min_vol:
+                            gtw.queue_my_new(is_buy=self.is_buy,
+                                             qty=child_vol,
+                                             price=self._target_px(gtw))
+                            wait = True
             
-
+        else:            
+            self.done = True
+            
+        self.gtw_moves(gtw, wait)
+        
+        return wait
     
+    def gtw_moves(self, gtw, wait):
+        
+        if wait:
+            gtw.move_n_seconds(n_seconds=self.n_seconds)
+        else:
+            gtw.tick()
+        
+        return
+
 class VTnewPOV():
     def __init__(self, target_pov, lmtpx, qty, min_child, start_time,
                  end_time, max_delay, max_pos_exec, max_rep_send,
@@ -276,23 +245,6 @@ class VTnewPOV():
         self.max_rep_send = max_rep_send
         
         
-class StopBuy():
-    def __init__(self, qty, stop_px, sweep_max=5):
-        self.qty=qty
-        self.stop_px=stop_px
-        self.uid = None
-        self.done = False        
-        self.sweep_max = sweep_max        
-        
-    def eval_and_act(self, gtw):
-        
-        target_px = gtw.mkt.get_new_price(self.stop_px, self.sweep_max)
-        if (gtw.mkt.last_trades['price'] >= self.stop_px).any():             
-            self.uid = gtw.queue_my_new(is_buy=True,
-                                            qty=self.qty,
-                                            price=target_px)        
-        
-            self.done = True        
         
     
         

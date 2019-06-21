@@ -53,7 +53,6 @@ gtw.mkt.bask
 # Check if there were any trades so far
 gtw.mkt.trades_vol
 gtw.mkt.trades_px
-gtw.mkt.trades_buy_init # buy initiated trade => aggressive buy 
 gtw.mkt.trades_time
 
 # Check market cummulative traded volume
@@ -119,7 +118,7 @@ my_uid = gtw.queue_my_new(is_buy=True,
                           price=imp_bbid)
 
 # Lets move gtw.latency microseconds in time to let our order arrive
-gtw.move_n_seconds(1+gtw.latency/1e6)
+gtw.move_n_seconds(gtw.latency/1e6)
 
 # Lets check our order status
 gtw.ord_status(my_uid)
@@ -133,7 +132,7 @@ print(gtw.mkt)
 gtw.queue_my_cancel(my_uid)
 
 # Move forward
-gtw.move_n_seconds(1+gtw.latency/1e6)
+gtw.move_n_seconds(gtw.latency/1e6)
 
 # Lets check our order status
 gtw.ord_status(my_uid)

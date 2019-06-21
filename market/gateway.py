@@ -61,18 +61,20 @@ class Gateway():
                 
     """
     
-    def __init__(self, ticker, year, month, day, latency,
-                 start_h=9, end_h=17.5):
+    def __init__(self, **kwargs):
         
-        self.ticker = ticker
-        self.year = year
-        self.month = month
-        self.day = day
+        ticker = kwargs.get('ticker')
+        date = kwargs.get('date')
+        year = date.year
+        month = date.month
+        day = date.day
+        start_h = kwargs.get('start_h', 9)
+        end_h = kwargs.get('end_h', 17.5)
         start_secs = int(start_h * 3600)
         end_secs = int(end_h * 3600)
         start_time = datetime(year, month, day) + timedelta(0, start_secs)
         end_time = datetime(year, month, day) + timedelta(0, end_secs)
-        self.latency = latency
+        self.latency = kwargs.get('latency', 20000)
         self.my_queue = deque()
         self.mkt_idx = 0
         self.mkt = Market(ticker=ticker)
@@ -83,7 +85,7 @@ class Gateway():
         self.my_last_uid = 0 
 
         # load historical orders from csv file
-        session = f'./data/orders-{ticker}-{date}.csv'
+        session = f'../data/orders-{ticker}-{date}.csv'
         csv = pd.read_csv(session, sep=';', float_precision='round_trip')
         csv['timestamp'] = pd.to_datetime(csv['timestamp'])
 
@@ -112,9 +114,8 @@ class Gateway():
             self._send_historical_order(mktorder)
         
         self.move_until(start_time)
-
-    def flying_ord(self):
-        return len(self.my_queue)>0
+        
+        self.mkt.reset_mkt(reset_all=False)
 
     def _send_to_market(self, order, is_mine):
         """ Send an order/modif/cancel to the market
@@ -305,8 +306,8 @@ class Gateway():
         return self.mkt_time + timedelta(0, 0, self.latency)
 
 
-
-        
+    def plot(self):
+        trades = pd.DataFrame(self.mkt.trades)
         
         
         
