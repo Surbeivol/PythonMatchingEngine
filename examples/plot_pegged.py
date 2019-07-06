@@ -13,7 +13,7 @@ sys.path.append('C:/DEV/PythonMatchingEngine')
 import time
 import pdb
 import numpy as np
-from market.gateway import Gateway
+from orderbook.gateway import Gateway
 from examples.algorithms import BuyTheBid, SimplePOV, Pegged
 from datetime import timedelta
 import matplotlib.pyplot as plt
@@ -22,7 +22,7 @@ import pandas as pd
 
 
 # =============================================================================
-# RESTART MARKET
+# RESTART orderbook
 # =============================================================================
 
 gtw = Gateway(ticker='ana',
@@ -44,13 +44,13 @@ hist_bidask = list()
 hist_leaves = list()
 t = time.time()
 
-while (not pegged.done) and (gtw.mkt_time < gtw.stop_time):        
-    hist_bidask.append([gtw.mkt.bbidpx, gtw.mkt.baskpx, gtw.mkt_time])
+while (not pegged.done) and (gtw.ob_time < gtw.stop_time):        
+    hist_bidask.append([gtw.ob.bbidpx, gtw.ob.baskpx, gtw.ob_time])
     if not gtw.flying_ord():    
         try:
             order = gtw.ord_status(pegged.leave_uid)        
             if order['leavesqty']>0:
-                hist_leaves.append([order['price'], gtw.mkt_time])
+                hist_leaves.append([order['price'], gtw.ob_time])
         except:
             pass
         
@@ -67,14 +67,14 @@ print(time.time()-t)
 # =============================================================================
 
 
-## MARKET BIDASK
+## orderbook BIDASK
 bidask = pd.DataFrame(hist_bidask, columns=['bid', 'ask', 'timestamp'])
 bidask.set_index(bidask.timestamp, inplace=True)
-# MARKET TRADES 
-trades = pd.DataFrame(gtw.mkt.trades).loc[:gtw.mkt.ntrds-1]
+# orderbook TRADES 
+trades = pd.DataFrame(gtw.ob.trades).loc[:gtw.ob.ntrds-1]
 trades.set_index(trades.timestamp, inplace=True)
 # MY TRADES 
-my_trades = pd.DataFrame(gtw.mkt.my_trades).loc[:gtw.mkt.my_ntrds-1]
+my_trades = pd.DataFrame(gtw.ob.my_trades).loc[:gtw.ob.my_ntrds-1]
 my_trades.set_index(my_trades.timestamp, inplace=True)
 
 leaves = pd.DataFrame(hist_leaves, columns=['price', 'timestamp'])

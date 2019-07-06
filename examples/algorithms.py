@@ -12,7 +12,7 @@ from collections import deque
 
 class SimpleMarketMaker():
     """ Passive strategy that always has one buy and one sell 
-    order close to the best bid and best ask of the market 
+    order close to the best bid and best ask of the orderbook 
     in order to try to capture the spread.    
     """
     
@@ -27,7 +27,7 @@ class SimpleMarketMaker():
 
 
 class BuyTheBid():
-    """ This execution algorithm just places one oder at the market
+    """ This execution algorithm just places one oder at the orderbook
     best bid and moves it to try to always be in the best bid. 
     It sends one child of child_vol shares at a time and sends
     a new one as soon as the prev was filled. 
@@ -49,7 +49,7 @@ class BuyTheBid():
         
         
     def eval_and_act(self, gtw):
-                        
+           orderb             
         if self.leave_uid is None:
             self.send_new_child(gtw)
         else:
@@ -113,7 +113,7 @@ class Pegged():
     
     def eval_and_act(self, gtw):
         
-        # If checking it before it arrives to the market
+        # If checking it before it arrives to the orderbook
         try:
             leave_ord = gtw.ord_status(self.uid)
         except KeyError:

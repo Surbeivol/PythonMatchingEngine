@@ -7,14 +7,12 @@ Created on Thu May 16 14:14:51 2019
 """
 from abc import ABC, abstractmethod
 from datetime import datetime
-from market.config.configuration_yaml import Configuration
-from market.core.prices_idx import get_band_dicts
+from config.configuration_yaml import Configuration
+from core.prices_idx import get_band_dicts
 import numpy as np
-import pandas as pd
-import pdb
 
-TICKER_BANDS = Configuration('./market/config/liq_bands.yml').config
-AVG_TRANSACTS = Configuration('./market/config/avg_band_transacts.yml').config
+TICKER_BANDS = Configuration('./config/liq_bands.yml').config
+AVG_TRANSACTS = Configuration('./config/avg_band_transacts.yml').config
 PX_IDXS, PRICES, MAX_TICK = get_band_dicts([1, 2, 3, 4, 5, 6])
 STATS = ['price', 'vol', 'agg_ord', 'pas_ord', 'timestamp']
 MY_STATS = ['price', 'vol', 'my_uid', 'timestamp']

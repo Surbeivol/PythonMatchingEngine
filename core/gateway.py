@@ -9,7 +9,7 @@ Created on Sat Jun 15 22:32:58 2019
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from market.core.orderbook import Orderbook
+from core.orderbook import Orderbook
 from datetime import datetime, timedelta
 from tqdm import tqdm
 from collections import deque, namedtuple
@@ -62,6 +62,7 @@ class Gateway():
     
     def __init__(self, **kwargs):
         
+        pdb.set_trace()
         ticker = kwargs.get('ticker')
         date = kwargs.get('date')
         year = date.year
