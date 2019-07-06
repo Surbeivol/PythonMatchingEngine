@@ -1,4 +1,7 @@
 *.pyc
 __pycache__*
 data/
-
+.vscode
+orderbook/
+XDG_CACHE_HOME/
+virtenv_ob/*

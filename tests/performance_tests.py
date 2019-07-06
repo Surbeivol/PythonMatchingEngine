@@ -5,7 +5,7 @@ Created on Thu May 30 08:21:48 2019
 
 @author: paco
 """
-from market import Market
+from market import orderbook
 import numpy as np 
 import matplotlib.pyplot as plt
 import time
@@ -39,20 +39,20 @@ np.random.shuffle(shuffled_idx)
 orders = [[is_buy[i], qtys[i], prices[i]] for i in shuffled_idx]
 
 # PERFORMANCE
-market = Market()
+orderbook = orderbook()
 
 t = time.time()
 for i in range(2*num_ords):
-    market.send(*orders[i])
+    orderbook.send(*orders[i])
 print(time.time()-t)
 
 # Number of executions 
-len(market.trades)
+len(orderbook.trades)
 
-trd_price = [trd[0] for trd in market.trades]
+trd_price = [trd[0] for trd in orderbook.trades]
 plt.plot(trd_price[0:1000])
 
 t =time.time()
 for i in range(10000):
-    market.top_bids(5)
+    orderbook.top_bids(5)
 print(time.time()-t)

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jun 18 17:46:49 2019
+Created on Thu Jun 20 09:27:45 2019
 
 @author: fmerlos
 """
+
 
 import os
 os.chdir('C:/DEV/PythonMatchingEngine')
@@ -12,8 +13,8 @@ sys.path.append('C:/DEV/PythonMatchingEngine')
 import time
 import pdb
 import numpy as np
-from core.gateway import Gateway
-from examples.algorithms import BuyTheBid, SimplePOV, StopBuy
+from orderbook.gateway import Gateway
+from examples.algorithms import BuyTheBid, SimplePOV, Pegged
 from datetime import timedelta
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -21,32 +22,39 @@ import pandas as pd
 
 
 # =============================================================================
-# RESTART MARKET
+# RESTART orderbook
 # =============================================================================
 
-gtw = Gateway(ticker='san',
+gtw = Gateway(ticker='ana',
              year=2019,
              month=5,
              day=23,
              start_h=9,
-             end_h=9.05,
+             end_h=10,
              latency=20000)
     
 
 
-# =============================================================================
-# RUN SIMPLEPOV ALGO
-# =============================================================================
+pegged= Pegged(is_buy=True, lmtpx=np.Inf, qty=100000, anchor_lvl=1,
+                 offset=1, gtw=gtw, quick=True, max_jump=np.Inf)
 
-
-stopbuy = StopBuy(qty=100, stop_px=4.03)
 
 
 hist_bidask = list()
+hist_leaves = list()
 t = time.time()
-while (gtw.mkt_time < gtw.stop_time):        
-    hist_bidask.append([gtw.mkt.bbidpx, gtw.ob.baskpx, gtw.ob_time])
-    stopbuy.eval_and_act(gtw)        
+
+while (not pegged.done) and (gtw.ob_time < gtw.stop_time):        
+    hist_bidask.append([gtw.ob.bbidpx, gtw.ob.baskpx, gtw.ob_time])
+    if not gtw.flying_ord():    
+        try:
+            order = gtw.ord_status(pegged.leave_uid)        
+            if order['leavesqty']>0:
+                hist_leaves.append([order['price'], gtw.ob_time])
+        except:
+            pass
+        
+    pegged.eval_and_act(gtw)        
     gtw.tick()    
 print(time.time()-t)
 
@@ -59,15 +67,18 @@ print(time.time()-t)
 # =============================================================================
 
 
-## MARKET BIDASK
+## orderbook BIDASK
 bidask = pd.DataFrame(hist_bidask, columns=['bid', 'ask', 'timestamp'])
 bidask.set_index(bidask.timestamp, inplace=True)
-# MARKET TRADES 
-trades = pd.DataFrame(gtw.mkt.trades).loc[:gtw.mkt.ntrds-1]
+# orderbook TRADES 
+trades = pd.DataFrame(gtw.ob.trades).loc[:gtw.ob.ntrds-1]
 trades.set_index(trades.timestamp, inplace=True)
 # MY TRADES 
-my_trades = pd.DataFrame(gtw.mkt.my_trades).loc[:gtw.mkt.my_ntrds-1]
+my_trades = pd.DataFrame(gtw.ob.my_trades).loc[:gtw.ob.my_ntrds-1]
 my_trades.set_index(my_trades.timestamp, inplace=True)
+
+leaves = pd.DataFrame(hist_leaves, columns=['price', 'timestamp'])
+leaves.set_index(leaves.timestamp, inplace=True)
 
 # filter:
 
@@ -81,6 +92,7 @@ for i in range(200):
     subbidask = bidask.loc[start_t:end_t]
     subtrades = trades.loc[start_t:end_t]
     mysubtrades = my_trades.loc[start_t:end_t]
+    subleaves = leaves.loc[start_t:end_t]
     
     greenc = '#009900'
     redc = '#cc0000'
@@ -106,8 +118,11 @@ for i in range(200):
     
     plt.plot(my_buy_init_trd, color='blue', linestyle=' ', marker='^', 
              markersize=7, label='aggbuy')
-    plt.plot(my_sell_init_trd, color=redc, linestyle=' ', marker='v', 
+    plt.plot(my_sell_init_trd, color='blue', linestyle=' ', marker='v', 
              markersize=7, label='aggsell')
+    
+    plt.plot(subleaves.price, color='blue', linestyle=' ', marker='.', 
+             markersize=5, label='aggbuy')
     
     plt.legend()
     plt.show(block=False)
