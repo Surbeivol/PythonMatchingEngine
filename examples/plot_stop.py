@@ -12,7 +12,7 @@ sys.path.append('C:/DEV/PythonMatchingEngine')
 import time
 import pdb
 import numpy as np
-from core.gateway import Gateway
+from market.gateway import Gateway
 from examples.algorithms import BuyTheBid, SimplePOV, StopBuy
 from datetime import timedelta
 import matplotlib.pyplot as plt
@@ -45,7 +45,7 @@ stopbuy = StopBuy(qty=100, stop_px=4.03)
 hist_bidask = list()
 t = time.time()
 while (gtw.mkt_time < gtw.stop_time):        
-    hist_bidask.append([gtw.mkt.bbidpx, gtw.ob.baskpx, gtw.ob_time])
+    hist_bidask.append([gtw.mkt.bbidpx, gtw.mkt.baskpx, gtw.mkt_time])
     stopbuy.eval_and_act(gtw)        
     gtw.tick()    
 print(time.time()-t)

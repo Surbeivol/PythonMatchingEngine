@@ -22,25 +22,14 @@ on a previous price and a number of tick movements.
 
 import numpy as np
 
-ticks = [
-    0.0001, 0.0001, 0.0001, 0.0001, 0.0002, 0.0005, 0.001, 0.002,
-    0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50,
-    100, 200, 500,
-]
+ticks = [0.0001, 0.0001, 0.0001, 0.0001, 0.0002, 0.0005, 0.001, 0.002,
+         0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50,
+         100, 200, 500,]
 
-units = [
-    4, 4, 4, 4, 4, 4, 3, 3, 3, 2, 2, 2,
-    1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-]
+units = [4, 4, 4, 4, 4, 4, 3, 3, 3, 2, 2, 2,
+         1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,]
 
-band_start = {
-    '1': 5,
-    '2': 4,
-    '3': 3,
-    '4': 2,
-    '5': 1,
-    '6': 0,
-}
+band_start = {'1': 5, '2': 4, '3': 3, '4': 2, '5': 1, '6': 0}
 
 
 def build_prices_dict(band):
@@ -49,7 +38,7 @@ def build_prices_dict(band):
     band_units = units[start:(19+start)]
     prices = []
     price_ticks = []
-    price = round(0, 0)
+    price = round(0,0)
     
     while price <= 50000:
         
@@ -89,16 +78,15 @@ def build_prices_dict(band):
             pos = 16
         elif (20000 <= price) and (price < 50000):
             pos = 17
-        elif 50000 <= price:
+        elif (50000 <= price):
             pos = 18
         
-        tick = round(band_ticks[pos], band_units[pos])
+        tick = round(band_ticks[pos],band_units[pos])
         price_ticks.append([tick, band_units[pos]])
         prices.append(price)
-        price = round((price + tick), band_units[pos])
+        price = round((price + tick),band_units[pos])
         
-    return dict(zip(prices, np.arange(len(prices)))), prices, band_ticks[18]
-
+    return dict(zip(prices,np.arange(len(prices)))), prices, band_ticks[18]
 
 def get_band_dicts(bands_list):
     

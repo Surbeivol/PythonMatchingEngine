@@ -9,42 +9,43 @@ Created on Sat Jun 15 22:32:58 2019
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from core.orderbook import Orderbook
+from market.market import Market
 from datetime import datetime, timedelta
 from tqdm import tqdm
+from numba import jit
 from collections import deque, namedtuple
 import pdb
 
 class Gateway():
-    """ Creates an empty Python Matching Engine (orderbook simulator) and injects 
+    """ Creates an empty Python Matching Engine (market simulator) and injects 
     real historical orders to it creating the real orderbooks and trades
-    that happened in that orderbook session. It also allows you to send
+    that happened in that market session. It also allows you to send
     your own orders to make them interact (i.e. cross) with the historical
-    orderbooks that were present that day. The orders you send to the orderbook 
+    orderbooks that were present that day. The orders you send to the market 
     through this Gateway will also experience latency as they 
     would in real life.
     
     The Gateway allows us to run a synchronous simulation of the interaction
-    of your algorithm with a Python Matching Engine (orderbook simulator)
+    of your algorithm with a Python Matching Engine (market simulator)
     that will be injected with real life historical orders of a 
-    past orderbook session while taking into account the effect
+    past market session while taking into account the effect
     of this latency. 
     
-    For example, when your algorithm receives a new orderbook best bid price,
+    For example, when your algorithm receives a new market best bid price,
     actually this price happened "md_latency" microseconds in the past, 
     the time it took to reach your algorithm. Your algo will take "algo_latency"
     microseconds to make a decission and send a message (new/cancel/modif),
-    and finally, this message will take "ob_latency" microseconds to reach
-    the orderbook because of the physical distance and the different systems
-    it needs to cross through before reaching the orderbook. 
+    and finally, this message will take "mkt_latency" microseconds to reach
+    the market because of the physical distance and the different systems
+    it needs to cross through before reaching the market. 
     
     The total latency will be: 
-        latency = md_latency + algo_latency + ob_latency
+        latency = md_latency + algo_latency + mkt_latency
     
-    When you send messages to a orderbook through this Gateway, 
-    your messages will reach the orderbook "latency" microseconds 
-    after the time of the last historical order that reached the orderbook
-    and that produced the last orderbook data update upon which your
+    When you send messages to a market through this Gateway, 
+    your messages will reach the market "latency" microseconds 
+    after the time of the last historical order that reached the market
+    and that produced the last market data update upon which your
     algo made its last decission.     
         
     Args:
@@ -54,44 +55,41 @@ class Gateway():
         day (int): day
         latency (int): mean latency in microseconds that we expect 
                         our orders to have in real life when sent 
-                        to the orderbook (orderbook data one way 
+                        to the market (market data one way 
                                      + algo decission time
-                                     + orderbook access one way)        
+                                     + market access one way)        
                 
     """
     
-    def __init__(self, **kwargs):
+    def __init__(self, ticker, year, month, day, latency,
+                 start_h=9, end_h=17.5):
         
-        pdb.set_trace()
-        ticker = kwargs.get('ticker')
-        date = kwargs.get('date')
-        year = date.year
-        month = date.month
-        day = date.day
-        start_h = kwargs.get('start_h', 9)
-        end_h = kwargs.get('end_h', 17.5)
+        self.ticker = ticker
+        self.year = year
+        self.month = month
+        self.day = day
         start_secs = int(start_h * 3600)
         end_secs = int(end_h * 3600)
         start_time = datetime(year, month, day) + timedelta(0, start_secs)
         end_time = datetime(year, month, day) + timedelta(0, end_secs)
-        self.latency = kwargs.get('latency', 20000)
+        self.latency = latency
         self.my_queue = deque()
-        self.ob_idx = 0
-        self.ob = Orderbook(ticker=ticker)
+        self.mkt_idx = 0
+        self.mkt = Market(ticker=ticker)
         date = f'{year}-{month}-{day}'
-        self.ob.date = ticker, date
+        self.mkt.date = ticker, date
         self.OrdTuple = namedtuple('Order',
                                    'ordtype uid is_buy qty price timestamp')
         self.my_last_uid = 0 
 
         # load historical orders from csv file
-        session = f'./data/historic_orders/orders-{ticker}-{date}.csv'
+        session = f'./data/orders-{ticker}-{date}.csv'
         csv = pd.read_csv(session, sep=';', float_precision='round_trip')
         csv['timestamp'] = pd.to_datetime(csv['timestamp'])
 
         # We will be working with ndarrays instead of DataFrames for speed
         self.hist_orders = csv.values
-        self.ob_nord = csv.shape[0]
+        self.mkt_nord = csv.shape[0]
         
         # we store index positions of columns for array indexing
         columns = csv.columns
@@ -105,20 +103,21 @@ class Gateway():
         
         # book positions (bid+ask) available in historical data
         BOOK_POS = 20
-        # send first 20 orders that will compose first orderbook snapshot
-        # this is the real orderbook that was present when the orderbook opened
+        # send first 20 orders that will compose first market snapshot
+        # this is the real orderbook that was present when the market opened
         # right after the opening auction
 
         for ord_idx in range(BOOK_POS):
-            oborder = self.hist_orders[self.ob_idx]
-            self._send_historical_order(oborder)
+            mktorder = self.hist_orders[self.mkt_idx]
+            self._send_historical_order(mktorder)
         
         self.move_until(start_time)
-        
-        self.ob.reset_ob(reset_all=False)
 
-    def _send_to_orderbook(self, order, is_mine):
-        """ Send an order/modif/cancel to the orderbook
+    def flying_ord(self):
+        return len(self.my_queue)>0
+
+    def _send_to_market(self, order, is_mine):
+        """ Send an order/modif/cancel to the market
                 order (ndarray): order to be sent
                 is_mine (bool): False if historical, True if user sent
         """
@@ -126,41 +125,41 @@ class Gateway():
         
         ord_type = order[self.col_idx['ordtype']]
         timestamp = order[self.col_idx['timestamp']]
-#        ob_open = self.check_ob_open(timestamp)
+#        mkt_open = self.check_mkt_open(timestamp)
         if self.check_ord_in_time(timestamp):
-            self.update_ob_time(timestamp)
+            self.update_mkt_time(timestamp)
             if ord_type == "new":
-                self.ob.send(is_buy=order[self.col_idx['is_buy']],
+                self.mkt.send(is_buy=order[self.col_idx['is_buy']],
                                 qty=order[self.col_idx['qty']],
                                 price=order[self.col_idx['price']],
                                 uid=order[self.col_idx['uid']],
                                 is_mine=is_mine,
                                 timestamp=timestamp)
             elif ord_type == "cancel":
-                self.ob.cancel(uid=order[self.col_idx['uid']])
+                self.mkt.cancel(uid=order[self.col_idx['uid']])
             elif ord_type == "modif":
-                self.ob.modif(uid=order[self.col_idx['uid']],                           
+                self.mkt.modif(uid=order[self.col_idx['uid']],                           
                                new_qty=order[self.col_idx['qty']])
             else:
                 raise ValueError(f'Unexpected ordtype: {ord_type}')
             return
         else:
-            self.update_ob_time(self.stop_time)
+            self.update_mkt_time(self.stop_time)
             if not is_mine:
-                self.ob_idx -= 1
+                self.mkt_idx -= 1
             return
     
-    def update_ob_time(self, new_ob_time):
+    def update_mkt_time(self, new_mkt_time):
         
-        self.ob_time = new_ob_time
+        self.mkt_time = new_mkt_time
     
     def move_n_seconds(self, n_seconds):
         """ 
         """   
-        self.stop_time = min(self.ob_time + timedelta(0, n_seconds),
+        self.stop_time = min(self.mkt_time + timedelta(0, n_seconds),
                              self.end_time)
         
-        while (self.ob_time < self.stop_time):
+        while (self.mkt_time < self.stop_time):
             self.tick()
         
         self.stop_time = self.end_time
@@ -171,10 +170,10 @@ class Gateway():
         """
         return (ord_timestamp < self.stop_time)
 
-    def _send_historical_order(self, oborder):
+    def _send_historical_order(self, mktorder):
         
-        self.ob_idx += 1
-        self._send_to_orderbook(oborder, is_mine=False)
+        self.mkt_idx += 1
+        self._send_to_market(mktorder, is_mine=False)
 
     def move_until(self, stop_time):
         
@@ -184,12 +183,12 @@ class Gateway():
                 
         """
         
-        while (self.ob_time <= stop_time):
-            oborder = self.hist_orders[self.ob_idx]
-            self._send_historical_order(oborder)
+        while (self.mkt_time <= stop_time):
+            mktorder = self.hist_orders[self.mkt_idx]
+            self._send_historical_order(mktorder)
             
     def tick(self):
-        """ Move the orderbook forward one tick (process next order)
+        """ Move the market forward one tick (process next order)
         
             If the user has messages (new/cancel/modif) queued, it will
             decide whether to send a user or historical order based on
@@ -198,21 +197,21 @@ class Gateway():
         
         # next historical order to be sent
 
-        oborder = self.hist_orders[self.ob_idx]
+        mktorder = self.hist_orders[self.mkt_idx]
 
         # if I have queued orders
         if self.my_queue:
-            # if my order reaches the orderbook before the next historical order
-            if self.my_queue[0].timestamp < oborder[self.col_idx['timestamp']]:
+            # if my order reaches the market before the next historical order
+            if self.my_queue[0].timestamp < mktorder[self.col_idx['timestamp']]:
                 my_order = self.my_queue.popleft()
-                self._send_to_orderbook(my_order, is_mine=True)
+                self._send_to_market(my_order, is_mine=True)
                 return
         
         # otherwise sent next historical order
-        self._send_historical_order(oborder)
+        self._send_historical_order(mktorder)
                     
     def queue_my_new(self, is_buy, qty, price):
-        """ Queue a user new order to be sent to the orderbook when time is due 
+        """ Queue a user new order to be sent to the market when time is due 
         
             Args:
                 is_buy (bool): True for buy orders
@@ -220,11 +219,11 @@ class Gateway():
                 price (float): limit price of the order
                 
             Reuturns:
-                An int indicating the uid that the orderbook will assign to
+                An int indicating the uid that the market will assign to
                 it when it is introudced.
                 NOTES: as the order is queued by this function, its uid does
-                not exist yet in the orderbook. It will not exist until 
-                the time is due and the order reaches the orderbook. Requesting
+                not exist yet in the market. It will not exist until 
+                the time is due and the order reaches the market. Requesting
                 the status of this uid will therefore raise a KeyError
                 meanwhile.
                 Uids of user orders will be negative, this
@@ -249,7 +248,7 @@ class Gateway():
         Modifications can only downsize the volume. 
         If you attempt to increase the volume, the
         modification message will do nothing. Downsizing volume will 
-        mantain your price-time priority in the orderbook. If you want to
+        mantain your price-time priority in the market. If you want to
         increase volume or change price, you need to cancel your previous
         order and send a new one. 
         
@@ -283,19 +282,19 @@ class Gateway():
     
     
     def ord_status(self, uid):
-        """ Returns the current ob status of an order identified by its uid.
+        """ Returns the current mkt status of an order identified by its uid.
         
         Args:
             uid (int): unique order identifier
         
         NOTE: when an order is queued, its uid does not exist yet in the
-        orderbook since it did not arrive there yet. Calling this function
-        on a uid that is queued by not yet in the orderbook will raise a 
+        market since it did not arrive there yet. Calling this function
+        on a uid that is queued by not yet in the market will raise a 
         KeyError exception that will have to be handled.        
         
         """
-        # TODO: use ticker to select orderbook 
-        return self.ob.get(uid)
+        # TODO: use ticker to select market orderbook
+        return self.mkt.get(uid)
 
     
     def _arrival_time(self):
@@ -303,11 +302,11 @@ class Gateway():
         
         """
         
-        return self.ob_time + timedelta(0, 0, self.latency)
+        return self.mkt_time + timedelta(0, 0, self.latency)
 
 
-    def plot(self):
-        trades = pd.DataFrame(self.ob.trades)
+
+        
         
         
         

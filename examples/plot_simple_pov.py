@@ -12,7 +12,7 @@ sys.path.append('C:/DEV/PythonMatchingEngine')
 import time
 import pdb
 import numpy as np
-from orderbook.gateway import Gateway
+from market.gateway import Gateway
 from examples.algorithms import BuyTheBid, SimplePOV
 from datetime import timedelta
 import matplotlib.pyplot as plt
@@ -21,7 +21,7 @@ import pandas as pd
 
 
 # =============================================================================
-# RESTART orderbook
+# RESTART MARKET
 # =============================================================================
 
 gtw = Gateway(ticker='san',
@@ -45,9 +45,9 @@ pov_algo = SimplePOV(is_buy=True, target_pov=0.2, lmtpx=np.Inf,
 
 hist_bidask = list()
 t = time.time()
-ob_nord = gtw.ob_nord-1
-while (not pov_algo.done) and (gtw.ob_time < gtw.stop_time):        
-    hist_bidask.append([gtw.ob.bbidpx, gtw.ob.baskpx, gtw.ob_time])
+mkt_nord = gtw.mkt_nord-1
+while (not pov_algo.done) and (gtw.mkt_time < gtw.stop_time):        
+    hist_bidask.append([gtw.mkt.bbidpx, gtw.mkt.baskpx, gtw.mkt_time])
     pov_algo.eval_and_act(gtw)        
     gtw.tick()    
 print(time.time()-t)
@@ -61,14 +61,14 @@ print(time.time()-t)
 # =============================================================================
 
 
-## orderbook BIDASK
+## MARKET BIDASK
 bidask = pd.DataFrame(hist_bidask, columns=['bid', 'ask', 'timestamp'])
 bidask.set_index(bidask.timestamp, inplace=True)
-# orderbook TRADES 
-trades = pd.DataFrame(gtw.ob.trades).loc[:gtw.ob.ntrds-1]
+# MARKET TRADES 
+trades = pd.DataFrame(gtw.mkt.trades).loc[:gtw.mkt.ntrds-1]
 trades.set_index(trades.timestamp, inplace=True)
 # MY TRADES 
-my_trades = pd.DataFrame(gtw.ob.my_trades).loc[:gtw.ob.my_ntrds-1]
+my_trades = pd.DataFrame(gtw.mkt.my_trades).loc[:gtw.mkt.my_ntrds-1]
 my_trades.set_index(my_trades.timestamp, inplace=True)
 
 # filter:
