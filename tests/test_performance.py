@@ -5,7 +5,7 @@ Created on Thu May 30 08:21:48 2019
 
 @author: paco
 """
-from market import orderbook
+from core.orderbook import Orderbook
 import numpy as np 
 import matplotlib.pyplot as plt
 import time
@@ -39,8 +39,8 @@ np.random.shuffle(shuffled_idx)
 orders = [[is_buy[i], qtys[i], prices[i]] for i in shuffled_idx]
 
 # PERFORMANCE
-orderbook = orderbook()
-
+orderbook = Orderbook('san')
+'''
 t = time.time()
 for i in range(2*num_ords):
     orderbook.send(*orders[i])
@@ -56,3 +56,5 @@ t =time.time()
 for i in range(10000):
     orderbook.top_bids(5)
 print(time.time()-t)
+
+'''
