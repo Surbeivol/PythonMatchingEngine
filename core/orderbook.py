@@ -11,8 +11,8 @@ from config.configuration_yaml import Configuration
 from core.prices_idx import get_band_dicts
 import numpy as np
 
-TICKER_BANDS = Configuration('./config/liq_bands.yml').config
-AVG_TRANSACTS = Configuration('./config/avg_band_transacts.yml').config
+TICKER_BANDS = Configuration('../config/liq_bands.yml').config
+AVG_TRANSACTS = Configuration('../config/avg_band_transacts.yml').config
 PX_IDXS, PRICES, MAX_TICK = get_band_dicts([1, 2, 3, 4, 5, 6])
 STATS = ['price', 'vol', 'agg_ord', 'pas_ord', 'timestamp']
 MY_STATS = ['price', 'vol', 'my_uid', 'timestamp']
