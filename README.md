@@ -94,7 +94,7 @@ ob.send(uid=-7, is_buy=False, qty=50, price=ob.get_new_price(10., 1))
 
 Will produce this Orderbook structure:
 
-![orderbook](https://user-images.githubusercontent.com/1562651/60772186-12895d00-a0f3-11e9-96a5-9c3a26c242ee.png)
+![full_book](https://user-images.githubusercontent.com/1562651/60772264-0fdb3780-a0f4-11e9-881e-0115012ce00a.png)
 
 
 If we send an aggressive order to this Orderbook:
@@ -108,7 +108,7 @@ ob.send(uid=-8, is_buy=True, qty=200, price = agg_price)
 
 The new Orderbook situation would look like this:
 
-![empty_ask_orderbook](https://user-images.githubusercontent.com/1562651/60772190-364ca300-a0f3-11e9-8719-d7dac555d467.png)
+![empty_ask_orderbook](https://user-images.githubusercontent.com/1562651/60772267-1bc6f980-a0f4-11e9-9631-0f7f3b46ae55.png)
 
 
 That is, all positions in the Ask half orderbook have been swept
