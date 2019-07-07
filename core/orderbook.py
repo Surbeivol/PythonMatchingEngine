@@ -10,6 +10,8 @@ from datetime import datetime
 from config.configuration_yaml import Configuration
 from core.prices_idx import get_band_dicts
 import numpy as np
+import pandas as pd
+import pdb
 
 config = Configuration()
 TICKER_BANDS = config.get_liq_bands()
