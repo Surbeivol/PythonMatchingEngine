@@ -62,23 +62,22 @@ class Gateway():
     
     def __init__(self, **kwargs):
         
-        pdb.set_trace()
         ticker = kwargs.get('ticker')
         date = kwargs.get('date')
-        year = date.year
-        month = date.month
-        day = date.day
+        datetimedate = datetime.strptime(date, '%Y-%m-%d')
+        year = datetimedate.year
+        month = datetimedate.month
+        day = datetimedate.day
         start_h = kwargs.get('start_h', 9)
         end_h = kwargs.get('end_h', 17.5)
         start_secs = int(start_h * 3600)
         end_secs = int(end_h * 3600)
-        start_time = datetime(year, month, day) + timedelta(0, start_secs)
-        end_time = datetime(year, month, day) + timedelta(0, end_secs)
-        self.latency = kwargs.get('latency', 20000)
+        start_time = datetimedate + timedelta(0, start_secs)
+        end_time = datetimedate + timedelta(0, end_secs)
+        self.latency = kwargs.get('latency', 20_000)
         self.my_queue = deque()
         self.ob_idx = 0
         self.ob = Orderbook(ticker=ticker)
-        date = f'{year}-{month}-{day}'
         self.ob.date = ticker, date
         self.OrdTuple = namedtuple('Order',
                                    'ordtype uid is_buy qty price timestamp')
@@ -140,7 +139,7 @@ class Gateway():
                 self.ob.cancel(uid=order[self.col_idx['uid']])
             elif ord_type == "modif":
                 self.ob.modif(uid=order[self.col_idx['uid']],                           
-                               new_qty=order[self.col_idx['qty']])
+                               qty_down=order[self.col_idx['qty']])
             else:
                 raise ValueError(f'Unexpected ordtype: {ord_type}')
             return
@@ -244,7 +243,7 @@ class Gateway():
         return self.my_last_uid 
 
     
-    def queue_my_modif(self, uid, new_qty):
+    def queue_my_modif(self, uid, qty_down):
         """ Modify an order identified by its uid without loosing priority.
         Modifications can only downsize the volume. 
         If you attempt to increase the volume, the
@@ -255,14 +254,14 @@ class Gateway():
         
         Args:
             uid (int): uid of our order to be modified
-            new_qty(int): new quantity. Only downsizing allowed. 
+            qty_down(int): Downsizing quantity. Only downsizing allowed. 
         
         """
                 
         message = self.OrdTuple(ordtype="modif",
                                     uid=uid,
                                     is_buy=np.nan,
-                                    qty=new_qty,
+                                    qty=qty_down,
                                     price=np.nan,                              
                                     timestamp=self._arrival_time())        
         self.my_queue.append(message)        
