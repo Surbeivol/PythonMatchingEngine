@@ -9,24 +9,7 @@ Created on Sat Jun 15 22:32:03 2019
 import numpy as np
 from collections import deque
 
-
-class SimpleMarketMaker():
-    """ Passive strategy that always has one buy and one sell 
-    order close to the best bid and best ask of the orderbook 
-    in order to try to capture the spread.    
-    """
-    
-    def __ini__(self, max_pos, child_vol):
-        self.max_pos = max_pos
-        self.child_vol = child_vol
-        self.cur_pos = 0
-        
-    # TODO: complete
-    # make my_last_trades and last_trades available through properties
-    # make interactive plotting function available
-
-
-class BuyTheBid():
+class BuyTheBid:
     """ This execution algorithm just places one oder at the orderbook
     best bid and moves it to try to always be in the best bid. 
     It sends one child of child_vol shares at a time and sends
@@ -49,7 +32,6 @@ class BuyTheBid():
         
         
     def eval_and_act(self, gtw):
-           orderb             
         if self.leave_uid is None:
             self.send_new_child(gtw)
         else:
@@ -71,9 +53,15 @@ class BuyTheBid():
                 self.send_new_child(gtw)
                 
 
-class Pegged():
-    
-    def __init__(self, is_buy, lmtpx, qty, anchor_lvl,
+class Pegged:
+
+    """ This algorithm places an order referenced to the anchor_lvl 
+        of the Orderbook with an aditional offset. It will cancel
+        and send a new order whenever it is not in the target.
+
+    """ 
+
+    def __init__(self, is_buy, lmtpx, qty, anchor_lvl, 
                  offset, gtw, quick=False, max_jump=np.Inf):
         self.is_buy = is_buy    
         self.lmtpx = lmtpx
