@@ -252,9 +252,7 @@ class NewOrderTests(unittest.TestCase):
         o8uid=8
         o8 = order(is_buy=False, qty=500, price=9.999, uid=o8uid)   
         orderbook.send(*o8)        
-        
         # check worst price        
-        self.assertIs(len(orderbook.trades), 5)
         self.assertEqual(orderbook.trades_px[4], 10.001)
         # check empty bids book
         self.assertIs(len(orderbook._bids.book), 0)
