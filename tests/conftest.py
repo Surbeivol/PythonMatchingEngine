@@ -1,5 +1,6 @@
 from collections import namedtuple
-
+import pytest
+from core.orderbook import Orderbook
 
 @pytest.fixture
 def bid1():
@@ -34,31 +35,31 @@ def bid5():
 @pytest.fixture
 def ask1():
     order = namedtuple('Order', 'is_buy, qty, price, uid')
-    o6 = order(is_buy=True, qty=600, price=0.3, uid=6)
+    o6 = order(is_buy=False, qty=600, price=0.3, uid=6)
     return o6
 
 @pytest.fixture
 def ask2():
     order = namedtuple('Order', 'is_buy, qty, price, uid')
-    o7 = order(is_buy=True, qty=700, price=0.3, uid=7)
+    o7 = order(is_buy=False, qty=700, price=0.3, uid=7)
     return o7
 
 @pytest.fixture
 def ask3():
     order = namedtuple('Order', 'is_buy, qty, price, uid')
-    o8 = order(is_buy=True, qty=800, price=0.31, uid=8)
+    o8 = order(is_buy=False, qty=800, price=0.31, uid=8)
     return o8
 
 @pytest.fixture
 def ask4():
     order = namedtuple('Order', 'is_buy, qty, price, uid')
-    o9 = order(is_buy=True, qty=900, price=0.31, uid=9)
+    o9 = order(is_buy=False, qty=900, price=0.31, uid=9)
     return o9
 
 @pytest.fixture
 def ask5():
     order = namedtuple('Order', 'is_buy, qty, price, uid')
-    o10 = order(is_buy=True, qty=1000, price=0.32, uid=10)
+    o10 = order(is_buy=False, qty=1000, price=0.32, uid=10)
     return o10
 
 @pytest.fixture
@@ -71,14 +72,14 @@ def ask_lmt_orders(ask1, ask2, ask3, ask4, ask5):
 
 @pytest.fixture()
 def bid_orderbook(bid_lmt_orders):
-    orderbook = Orderbook('ticker')
+    orderbook = Orderbook('san')
     for order in bid_lmt_orders:
         orderbook.send(*order)
     return orderbook
 
 @pytest.fixture()
 def ask_orderbook(ask_lmt_orders):
-    orderbook = Orderbook('ticker')
+    orderbook = Orderbook('san')
     for order in ask_lmt_orders:
         orderbook.send(*order)
     return orderbook
@@ -89,12 +90,3 @@ def full_orderbook(bid_orderbook, ask_lmt_orders):
     for order in ask_lmt_orders:
         orderbook.send(*order)
     return orderbook
-
-
-    
-
-
-
-
-    
-    

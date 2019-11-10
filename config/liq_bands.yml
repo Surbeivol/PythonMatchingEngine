@@ -1,5 +1,6 @@
 # Spanish Stock Exchange Tickers and their corresponding 
 # MiFID II tick-size regime liquidity bands for 2019
+# Any ticker not included here will be considered band6
 # TODO: include date from and to, to deal with changes in liquidity bands
 ana: band4
 acx: band5
@@ -35,3 +36,11 @@ sgre: band5
 tre: band4
 tef: band6
 vis: band4
+
+# generic tickers to ensure a certain liquidity band for testing
+band1stock: band1
+band2stock: band2
+band3stock: band3
+band4stock: band4
+band5stock: band5
+band6stock: band6
