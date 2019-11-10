@@ -11,16 +11,18 @@ from core.gateway import Gateway
 import numpy as np 
 import matplotlib.pyplot as plt
 import time
+from datetime import datetime
 import pandas as pd
 import pdb
-
 
 
 # Test with file data/orders-san-2019-5-23.csv
 # containing 275_121 orders, modifications or cancelations in a single day
 
+session = datetime.strptime('2019-05-23', '%Y-%m-%d').date()
+
 gtw = Gateway(ticker='san',
-             date='2019-05-23',
+             date=session,
              latency=20_000)
 
 num_ords = len(gtw.hist_orders)

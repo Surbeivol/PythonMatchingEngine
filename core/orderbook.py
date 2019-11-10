@@ -14,19 +14,29 @@ from core.prices_idx import get_band_dicts
 import numpy as np
 import pandas as pd
 import pdb
+import warnings
 
 config = Configuration()
 TICKER_BANDS = config.get_liq_bands()
+DEFAULT_BAND = 'band6'
 AVG_TRANSACTS = config.get_trades_bands()
 PX_IDXS, PRICES, MAX_TICK = get_band_dicts([1, 2, 3, 4, 5, 6])
 STATS = ['price', 'vol', 'agg_ord', 'pas_ord', 'buy_init', 'timestamp']
 MY_STATS = ['price', 'vol', 'my_uid', 'timestamp']
+TICK_SIZE_REGIME_URL = 'https://www.emissions-euets.com/tick-size-regime'
 
 
 class Orderbook:
-
     def __init__(self, ticker, max_impact=20):
-        band = TICKER_BANDS[ticker]
+        if ticker not in TICKER_BANDS:
+            band = DEFAULT_BAND
+            warnings.warn(f'Ticker {ticker} not found in liquidity bands'
+                           ' configuration file. \n Band6 (highest liquidity'
+                           ' stock) will be set as default for tick size calc.\n'
+                          f' Check {TICK_SIZE_REGIME_URL} for more info')
+        else:
+            band = TICKER_BANDS[ticker]
+            
         #        self.band_ticks = self.__class__.band_ticks[band]
         self.band_idxs = PX_IDXS[band]
         self.band_prices = PRICES[band]
@@ -192,7 +202,7 @@ class Orderbook:
                 uid (int): unique identifier of the Order
         
             Returns:
-                order (Order): a copy of the order identified by this uid
+                order (dict): a dictionary with the order info
         
         """
         order = self._orders[uid]
@@ -209,7 +219,7 @@ class Orderbook:
 
         try:
             return self.band_prices[self.band_idxs[price] + n_moves]
-        except KeyError or IndexError:
+        except (KeyError, IndexError):
             if n_moves >= 0:
                 try:
                     assert price < self.band_prices[-1]

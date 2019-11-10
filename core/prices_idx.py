@@ -53,44 +53,46 @@ def build_prices_dict(band):
     
     while price <= 50000:
         
-        if (0 <= price) and (price < 0.1):
+        if price < 0.1:
             pos = 0
-        elif (0.1 <= price) and (price < 0.2):
+        elif price < 0.2:
             pos = 1
-        elif (0.2 <= price) and (price < 0.5):
+        elif price < 0.5:
             pos = 2
-        elif (0.5 <= price) and (price < 1):
+        elif price < 1:
             pos = 3
-        elif (1 <= price) and (price < 2):
+        elif price < 2:
             pos = 4
-        elif (2 <= price) and (price < 5):
+        elif price < 5:
             pos = 5
-        elif (5 <= price) and (price < 10):
+        elif price < 10:
             pos = 6
-        elif (10 <= price) and (price < 20):
+        elif price < 20:
             pos = 7
-        elif (20 <= price) and (price < 50):
+        elif price < 50:
             pos = 8
-        elif (50 <= price) and (price < 100):
+        elif price < 100:
             pos = 9
-        elif (100 <= price) and (price < 200):
+        elif price < 200:
             pos = 10
-        elif (200 <= price) and (price < 500):
+        elif price < 500:
             pos = 11
-        elif (500 <= price) and (price < 1000):
+        elif price < 1000:
             pos = 12
-        elif (1000 <= price) and (price < 2000):
+        elif price < 2000:
             pos = 13
-        elif (2000 <= price) and (price < 5000):
+        elif price < 5000:
             pos = 14
-        elif (5000 <= price) and (price < 10000):
+        elif price < 10000:
             pos = 15
-        elif (10000 <= price) and (price < 20000):
+        elif price < 20000:
             pos = 16
-        elif (20000 <= price) and (price < 50000):
+        elif price < 50000:
             pos = 17
-        elif 50000 <= price:
+        elif 50000 >= price:
             pos = 18
+        else:
+            raise ValueError(f'Unexpected price: {price}')
         
         tick = round(band_ticks[pos], band_units[pos])
         price_ticks.append([tick, band_units[pos]])

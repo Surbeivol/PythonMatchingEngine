@@ -2,8 +2,8 @@ import os
 import os.path
 import yaml
 
+
 class Configuration:
- 
     def __init__(self):
        self.path = os.path.dirname(__file__)
 
