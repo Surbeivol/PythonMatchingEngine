@@ -106,7 +106,14 @@ and the leaves volume will set the new best bid in the market.
 
 You can check examples of usage in ./examples 
 
-NOTE: you will probably not want to interact directly with the
+NOTES: 
+
+Use positive integers for the uids when sending historical orders
+to the Oderbook and negative integers when sending your own orders.
+This way Orderbook class will be able to keep track of your vwap 
+or cumvol against market vwap or cumvol.
+
+You will probably not want to interact directly with the
 Orderbook but instead use the Gateway class as proxy to it,
 thus benefiting from the latency simulation and the posibility
 to inject historical orders and move the time forward.
