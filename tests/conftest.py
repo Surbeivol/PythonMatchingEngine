@@ -1,6 +1,6 @@
 from collections import namedtuple
 import pytest
-from core.orderbook import Orderbook
+from marketsimulator.orderbook import Orderbook
 
 @pytest.fixture
 def bid1():
@@ -72,14 +72,14 @@ def ask_lmt_orders(ask1, ask2, ask3, ask4, ask5):
 
 @pytest.fixture()
 def bid_orderbook(bid_lmt_orders):
-    orderbook = Orderbook('san')
+    orderbook = Orderbook('band6stock')
     for order in bid_lmt_orders:
         orderbook.send(*order)
     return orderbook
 
 @pytest.fixture()
 def ask_orderbook(ask_lmt_orders):
-    orderbook = Orderbook('san')
+    orderbook = Orderbook('band6stock')
     for order in ask_lmt_orders:
         orderbook.send(*order)
     return orderbook

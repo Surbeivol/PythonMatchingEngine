@@ -10,7 +10,7 @@ Created on Thu May 16 14:14:51 2019
 from abc import ABC, abstractmethod
 from datetime import datetime
 from config.configuration_yaml import Configuration
-from core.prices_idx import get_band_dicts
+from marketsimulator.prices_idx import get_band_dicts
 import numpy as np
 import pandas as pd
 import pdb

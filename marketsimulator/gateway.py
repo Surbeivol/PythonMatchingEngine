@@ -8,7 +8,7 @@ Created on Sat Jun 15 22:32:58 2019
 
 import pandas as pd
 import numpy as np
-from core.orderbook import Orderbook
+from marketsimulator.orderbook import Orderbook
 from datetime import datetime, timedelta
 from collections import deque, namedtuple
 import pdb

@@ -6,8 +6,8 @@ Created on Thu May 30 08:21:48 2019
 
 @author: paco
 """
-from core.orderbook import Orderbook
-from core.gateway import Gateway
+from marketsimulator.orderbook import Orderbook
+from marketsimulator.gateway import Gateway
 import numpy as np 
 import matplotlib.pyplot as plt
 import time

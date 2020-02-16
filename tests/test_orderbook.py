@@ -1,4 +1,4 @@
-from core.orderbook import Orderbook
+from marketsimulator.orderbook import Orderbook
 from collections import namedtuple
 import numpy as np
 

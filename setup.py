@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="pythonmatchingengine",
+    name="marketsimulator",
     version="0.0.1",
     author="Francisco Merlos and Jesús Sanz",
     author_email='pako_neo@hotmail.com',
