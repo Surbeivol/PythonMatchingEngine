@@ -60,7 +60,7 @@ class Orderbook:
         self.my_cumvol = 0
         self.cumturn = 0.
         self.my_cumturn = 0.
-        self.cum_agg_effect = 0
+        self.market_impact = 0
         self.my_cumvol_sent = 0
         self.last_px = None
 
@@ -79,7 +79,7 @@ class Orderbook:
         self.my_cumvol = 0
         self.cumturn = 0.
         self.my_cumturn = 0.
-        self.cum_agg_effect = 0
+        self.market_impact = 0
 
     def create_stats_dict(self, stat_dict=None):
 
@@ -216,6 +216,17 @@ class Orderbook:
                 'active': order.active}
 
     def get_new_price(self, price, n_moves):
+        """ Given a price and a number of ticks of offset (n_moves)
+            it returns the new price 
+
+            The tick size will depend on the price and the liquidity
+            band of the stock.
+
+            This function allows you to move a price a certain number
+            of ticks without needing to know which is the tick size
+            corresponding to the stock a this price.
+            
+        """
 
         try:
             return self.band_prices[self.band_idxs[price] + n_moves]
@@ -244,26 +255,24 @@ class Orderbook:
              is_mine=False, timestamp=datetime.now()):
         """ Send new order to orderbook
             Passive orders can't be matched and will be added to the book
-            Aggressive orders are matched against opp. side's resting orders
+            Aggressive orders are matched against opp. side's resting order
             
             Args:
                 is_buy (bool): True if it is a buy order
                 qty (int): initial quantity or size of the order 
                 price (float): limit price of the order
+                uid (int): universal identifier of the order
+                is_mine (bool): False if the order corresponds to a
+                historical order instead of you own orders
+                uid (int)
                 timestamp (float): time of processing 
                 
         """
-
-        assert np.isnan(price) == False
+        if np.isnan(price):
+            raise Exception("Price cannot be nan. Use np.Inf in needed")
 
         if not is_mine:
-            # use log(self.cum_agg_effect)??
-            if self.cum_agg_effect >= 1:
-                nticks = min(int(self.cum_agg_effect), self.max_impact)
-                price = self.get_new_price(price=price, n_moves=nticks)
-            elif self.cum_agg_effect <= -1:
-                nticks = max(int(self.cum_agg_effect), -1 * self.max_impact)
-                price = self.get_new_price(price=price, n_moves=nticks)
+            price = self._affect_price_with_market_impact(price)
         else:
             self.n_my_orders += 1
             self.my_cumvol_sent += qty
@@ -280,6 +289,24 @@ class Orderbook:
                 else:
                     self._asks.add(neword)
                 return
+
+    def _affect_price_with_market_impact(self, price):
+        """ Modifies historical prices to be sent to the Orderbook by
+            the cummulative effect of market impact that our own orders
+            would have produced in a real trading session. 
+
+            When we sweep a position in real life, this has an impact on
+            the prices that the rest of the actors will be sending afterwards.
+            We move the markets slightly with our orders.
+
+        """
+        if self.market_impact >= 1:
+            nticks = min(int(self.market_impact), self.max_impact)
+            price = self.get_new_price(price=price, n_moves=nticks)
+        elif self.market_impact <= -1:
+            nticks = max(int(self.market_impact), -1 * self.max_impact)
+            price = self.get_new_price(price=price, n_moves=nticks)        
+        return price
 
     def cancel(self, uid):
 
@@ -330,6 +357,10 @@ class Orderbook:
         
         For quantity increase or price modification, you need to cancel
         previous order and send a new one. 
+
+        Args:
+            uid (int): identifier of the order to be modified
+            qty_down(int): quantity to substract to current order leavesqty
         
         """
 
@@ -533,18 +564,18 @@ class Orderbook:
 
         if my_agg_vol > 0:
             agg_effect = min(1., my_agg_vol / init_best_vol)
-            self.cum_agg_effect += (agg_effect * agg_effect_side)
+            self.market_impact += (agg_effect * agg_effect_side)
 
         if ob_agg_vol > 0:
             ob_correction = False
-            if (self.cum_agg_effect > 0) and (agg_effect_side == -1):
+            if (self.market_impact > 0) and (agg_effect_side == -1):
                 ob_correction = True
-            elif (self.cum_agg_effect < 0) and (agg_effect_side == 1):
+            elif (self.market_impact < 0) and (agg_effect_side == 1):
                 ob_correction = True
             if ob_correction:
                 agg_effect = min(1., ob_agg_vol / init_best_vol)
                 pov_f = 1 - self.my_cumvol / self.cumvol
-                self.cum_agg_effect += (agg_effect * agg_effect_side) * pov_f
+                self.market_impact += (agg_effect * agg_effect_side) * pov_f
 
         self.last_px = price
 
