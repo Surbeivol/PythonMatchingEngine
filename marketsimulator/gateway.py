@@ -78,7 +78,11 @@ class Gateway:
         self.latency = kwargs.get('latency', 20000)
         self.my_queue = deque()
         self.ob_idx = 0
-        self.ob = Orderbook(ticker=ticker)
+        resilience = kwargs.get('resilience', 1)
+        max_impact = kwargs.get('max_impact', 20)
+        self.ob = Orderbook(ticker=ticker,
+                            max_impact=max_impact,
+                            resilience=resilience)
         date = f'{year}-{month}-{day}'
         self.ob.date = ticker, date
         self.OrdTuple = namedtuple('Order',

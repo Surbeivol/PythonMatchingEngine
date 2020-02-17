@@ -27,7 +27,7 @@ TICK_SIZE_REGIME_URL = 'https://www.emissions-euets.com/tick-size-regime'
 
 
 class Orderbook:
-    def __init__(self, ticker, max_impact=20):
+    def __init__(self, ticker, max_impact=20, resilience=1):
         if ticker not in TICKER_BANDS:
             band = DEFAULT_BAND
             warnings.warn(f'Ticker {ticker} not found in liquidity bands'
@@ -47,6 +47,7 @@ class Orderbook:
         # default day
         self.def_day = datetime(1970, 1, 1)
         self.max_impact = max_impact
+        self.resilience = resilience
         self._bids = Bids()
         self._asks = Asks()
         self.create_stats_dict()
@@ -301,10 +302,12 @@ class Orderbook:
 
         """
         if self.market_impact >= 1:
-            nticks = min(int(self.market_impact), self.max_impact)
+            nticks = min(int(self.resilience*self.market_impact),
+                         self.max_impact)
             price = self.get_new_price(price=price, n_moves=nticks)
         elif self.market_impact <= -1:
-            nticks = max(int(self.market_impact), -1 * self.max_impact)
+            nticks = max(int(self.resilience*self.market_impact),
+                         -1 * self.max_impact)
             price = self.get_new_price(price=price, n_moves=nticks)        
         return price
 

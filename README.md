@@ -58,7 +58,7 @@ with passive and aggressive orders, we will provide an example and some diagrams
 The following code:
 
 ``` python
-from core.orderbook import Orderbook
+from marketsimulator.orderbook import Orderbook
 # initialize an empty orderbook book for Santander shares (san)
 ob = Orderbook(ticker='san')
 # fill with different passive orders
@@ -157,7 +157,7 @@ The expected total latency is configured to be 20,000 microseconds == 20ms
 ```
 import datetime
 import numpy as np
-from core.gateway import Gateway
+from marketsimulator.gateway import Gateway
 
 gtw = Gateway(ticker='san',
              date=datetime.date(2019,5,23),
