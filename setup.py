@@ -24,7 +24,7 @@ setuptools.setup(
         'pyparsing==2.4.0',
         'python-dateutil==2.8.0',
         'pytz==2019.1',
-        'PyYAML==5.1.1',
+        'PyYAML==5.4',
         'six==1.12.0',
         'tqdm==4.32.2'
     ],
