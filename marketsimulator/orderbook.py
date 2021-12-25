@@ -27,7 +27,33 @@ TICK_SIZE_REGIME_URL = 'https://www.emissions-euets.com/tick-size-regime'
 
 
 class Orderbook:
-    def __init__(self, ticker, max_impact=20, resilience=1):
+
+    def __init__(self, ticker, max_impact=20, resilience=0):
+
+        """        
+        max_impact: maximum number of ticks to off-set historical 
+            prices sent to the orderbook to reflect the effect of 
+            the estimated market impact of your simulated trades.
+        
+        resiliance: how much you consider the market will move from the
+            impact of your trades. 
+            
+            If set to 0, the orderbook performs a
+            normal simulation without affecting historical prices by 
+            the market impact.
+
+            If set to 1, if you remove the liquidity of the book of
+            a whole price level in the ask with an aggressive buy order,
+            all historical prices 
+            sent to the orderbook will be moved 1 tick upwards, to 
+            reflect the 1-to-1 efect of your aggressive sweep
+            into the prices the rest of the market would send after that
+            
+            Usually the market has some elasticity, so this value would
+            be between 0 and 1. 
+        """
+
+
         if ticker not in TICKER_BANDS:
             band = DEFAULT_BAND
             warnings.warn(f'Ticker {ticker} not found in liquidity bands'
@@ -368,14 +394,14 @@ class Orderbook:
         """
 
         if uid in self._orders:
-            prev_ord = self._orders[uid]
-            qty_down = min(prev_ord.leavesqty, qty_down)
-            prev_ord.leavesqty -= qty_down
-            prev_ord.qty -= qty_down
-            if uid < 0:
-                self.my_cumvol_sent -= qty_down
-            if prev_ord.leavesqty == 0:
+            prev_ord = self._orders[uid]            
+            if prev_ord.leavesqty <= qty_down:
                 self.cancel(uid)
+            else:
+                if prev_ord.uid < 0:
+                    self.my_cumvol_sent -= qty_down
+                prev_ord.leavesqty -= qty_down
+                prev_ord.qty -= qty_down      
 
     def _is_aggressive(self, order):
         """ Aggressive orders are those that would be matched against
