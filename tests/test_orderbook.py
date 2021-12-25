@@ -105,7 +105,7 @@ class TestOrderbook:
         # ask halfbook is now empty
         assert full_orderbook.bask is None
         # aggressive order swept all positions and rested in the book
-        # setting the new best bid
+        # setting the new best ask
         assert full_orderbook.bbid == (agg_ord.price, agg_ord.qty - ask_liquidity)
         # trades were done in the corresponding order by price-time priority 
         assert (full_orderbook.trades_vol == ask_vol_positions).all()
@@ -205,8 +205,232 @@ class TestOrderbook:
         assert orderbook.get_new_price(100, n_moves=-1) == 99.98
         assert orderbook.get_new_price(100, n_moves=1) == 100.05
 
+    def test_cancel_intermediate_pricelevel_and_then_sweep(
+        self,
+        bid_orderbook,
+        bid1, 
+        bid2, 
+        bid3, 
+        bid4, 
+        bid5):
+        
+        bid_orderbook.cancel(bid3.uid)
+        bid_orderbook.cancel(bid4.uid)
+
+        expected_liquidity = bid1.qty + bid2.qty + bid5.qty
+        vol_above_liquidity = 1
+        min_price = bid5.price
+        
+        order = namedtuple('Order', 'is_buy, qty, price, uid')
+        sweep_order = order(
+            is_buy=False, 
+            qty=expected_liquidity+vol_above_liquidity,
+            price=min_price,
+            uid=-1)
+        
+        bid_orderbook.send(*sweep_order)
+
+        assert (bid_orderbook.trades['price'][:5] == [
+            bid1.price, bid2.price, bid5.price, 0, 0
+        ]).all()
+
+        assert (bid_orderbook.trades['vol'][:5] == [
+            bid1.qty, bid2.qty, bid5.qty, 0, 0
+        ]).all()
+
+        assert bid_orderbook.bask == (min_price, vol_above_liquidity)
 
 
+    def test_cancel_intermediate_positions_in_price_level_and_then_sweep(
+        self,
+        bid_orderbook,
+        bid1, 
+        bid2, 
+        bid3, 
+        bid4, 
+        bid5):
+        
+        order = namedtuple('Order', 'is_buy, qty, price, uid')
+        bid6 = order(
+            is_buy=True, 
+            qty=569,
+            price=bid3.price,
+            uid=11)
+        
+        # This order will be placed third in the queue or orders at 0.19
+        # after bid3 and bid4 respectively
+        bid_orderbook.send(*bid6)
 
+        # We cancel the order in the middle of the queue at 0.19
+        bid_orderbook.cancel(bid4.uid)
+
+        # Now we want to test that the correct order prevails after this,
+        # being it bid1, bid2, bid3, bid6 and bid5 by price-time priority
+
+        expected_liquidity = bid1.qty + bid2.qty + bid3.qty + bid6.qty + bid5.qty
+        vol_above_liquidity = 1
+        min_price = bid5.price
+        sweep_order = order(
+            is_buy=False, 
+            qty=expected_liquidity+1,
+            price=min_price,
+            uid=-1)
+        bid_orderbook.send(*sweep_order)
+
+        assert (bid_orderbook.trades['price'][:6] == [
+            bid1.price, bid2.price, bid3.price, bid6.price, bid5.price, 0 
+        ]).all()
+
+        assert (bid_orderbook.trades['vol'][:6] == [
+            bid1.qty, bid2.qty, bid3.qty, bid6.qty, bid5.qty, 0
+        ]).all()
+
+        assert bid_orderbook.bask == (min_price, vol_above_liquidity)
 
         
+    def test_cancel_top_position_in_intermediate_price_level_and_then_sweep(
+        self,
+        bid_orderbook,
+        bid1, 
+        bid2, 
+        bid3, 
+        bid4, 
+        bid5):
+        
+        bid_orderbook.cancel(bid3.uid)
+
+        expected_liquidity = bid1.qty + bid2.qty + bid4.qty + bid5.qty
+        vol_above_liquidity = 1
+        min_price = bid5.price
+
+        order = namedtuple('Order', 'is_buy, qty, price, uid')
+        sweep_order = order(
+            is_buy=False, 
+            qty=expected_liquidity+1,
+            price=min_price,
+            uid=-1)
+        bid_orderbook.send(*sweep_order)
+
+        assert (bid_orderbook.trades['price'][:5] == [
+            bid1.price, bid2.price, bid4.price, bid5.price, 0 
+        ]).all()
+
+        assert (bid_orderbook.trades['vol'][:5] == [
+            bid1.qty, bid2.qty, bid4.qty, bid5.qty, 0
+        ]).all()
+
+        assert bid_orderbook.bask == (min_price, vol_above_liquidity)
+
+
+    def test_vwap(
+        self,
+        full_orderbook,
+        bid1, 
+        bid2, 
+        bid3, 
+        bid4, 
+        bid5,
+        ask1,
+        ask2,
+        ask3,
+        ask4,
+        ask5):
+
+        order = namedtuple('Order', 'is_buy, qty, price, uid')
+
+        bid_liquidity = bid1.qty + bid2.qty + bid3.qty + bid4.qty + bid5.qty
+        bid_min_price = bid5.price
+        sweep_bid = order(
+            is_buy=False, 
+            qty=bid_liquidity,
+            price=bid_min_price,
+            uid=-1)
+        full_orderbook.send(*sweep_bid)
+
+        ask_liquidity = ask1.qty + ask2.qty + ask3.qty + ask4.qty + ask5.qty
+        ask_max_price = ask5.price
+        sweep_ask = order(
+            is_buy=True, 
+            qty=ask_liquidity,
+            price=ask_max_price,
+            uid=-2)
+        full_orderbook.send(*sweep_ask)
+
+        exp_vwap = \
+            (bid1.qty*bid1.price + \
+            bid2.qty*bid2.price + \
+            bid3.qty*bid3.price + \
+            bid4.qty*bid4.price + \
+            bid5.qty*bid5.price + \
+            ask1.qty*ask1.price + \
+            ask2.qty*ask2.price + \
+            ask3.qty*ask3.price + \
+            ask4.qty*ask4.price + \
+            ask5.qty*ask5.price) / \
+            (bid1.qty + \
+            bid2.qty + \
+            bid3.qty + \
+            bid4.qty + \
+            bid5.qty + \
+            ask1.qty + \
+            ask2.qty + \
+            ask3.qty + \
+            ask4.qty + \
+            ask5.qty)
+
+        assert exp_vwap == full_orderbook.vwap
+        assert exp_vwap == full_orderbook.my_vwap
+        assert full_orderbook.my_pov == 1
+
+    def test_reducing_orders_volume_does_not_change_price_time_priority(
+        self,
+        full_orderbook,
+        bid1, 
+        bid2, 
+        bid3, 
+        bid4, 
+        bid5,
+        ask1,
+        ask2,
+        ask3,
+        ask4,
+        ask5):
+
+        order = namedtuple('Order', 'is_buy, qty, price, uid')
+
+        # We modify the first order in the second price level
+        # sice we are reducing the volume, this should not change
+        # the price-time priority of these orders
+        import pdb;pdb.set_trace()
+        full_orderbook.modif(uid=bid3.uid, qty_down=1)
+        bid3 = full_orderbook.get(uid=bid3.uid)
+        full_orderbook.modif(uid=ask3.uid, qty_down=1)
+        ask3 = full_orderbook.get(uid=ask3.uid)
+
+        bid_liquidity = bid1.qty + bid2.qty + bid3['qty'] + bid4.qty + bid5.qty
+        bid_min_price = bid5.price
+        sweep_bid = order(
+            is_buy=False, 
+            qty=bid_liquidity,
+            price=bid_min_price,
+            uid=-1)
+        full_orderbook.send(*sweep_bid)
+
+        ask_liquidity = ask1.qty + ask2.qty + ask3['qty'] + ask4.qty + ask5.qty
+        ask_max_price = ask5.price
+        sweep_ask = order(
+            is_buy=True, 
+            qty=ask_liquidity,
+            price=ask_max_price,
+            uid=-2)
+        full_orderbook.send(*sweep_ask)
+
+        assert (full_orderbook.trades['price'][:11] == [
+            bid1.price, bid2.price, bid3['price'], bid4.price, bid5.price,
+            ask1.price, ask2.price, ask3['price'], ask4.price, ask5.price,
+            0]).all()
+
+        assert (full_orderbook.trades['vol'][:11] == [
+            bid1.qty, bid2.qty, bid3['qty'], bid4.qty, bid5.qty, 
+            ask1.qty, ask2.qty, ask3['qty'], ask4.qty, ask5.qty, 
+            0]).all()
