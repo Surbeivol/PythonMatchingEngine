@@ -11,9 +11,9 @@ class TestOrderbook:
         orderbook = Orderbook('band6stock')
         orderbook.send(*bid1)
 
-        assert orderbook._bids.best.price == bid1.price
-        assert orderbook._bids.best.head.uid == bid1.uid
-        assert orderbook._bids.best.tail.uid == bid1.uid
+        assert orderbook._bids.best_price == bid1.price
+        assert orderbook._bids.head_pricelevel.head_order.uid == bid1.uid
+        assert orderbook._bids.head_pricelevel.tail_order.uid == bid1.uid
         assert orderbook._orders[bid1.uid].uid == bid1.uid
         assert orderbook.get(bid1.uid)['active']
         
@@ -21,19 +21,19 @@ class TestOrderbook:
         orderbook = Orderbook('band6stock')
         orderbook.send(*ask1)
 
-        assert orderbook._asks.best.price == ask1.price
-        assert orderbook._asks.best.head.uid == ask1.uid
-        assert orderbook._asks.best.tail.uid == ask1.uid
+        assert orderbook._asks.best_price == ask1.price
+        assert orderbook._asks.head_pricelevel.head_order.uid == ask1.uid
+        assert orderbook._asks.head_pricelevel.tail_order.uid == ask1.uid
         assert orderbook._orders[ask1.uid].uid == ask1.uid
         assert orderbook.get(ask1.uid)['active']
 
     def test_get_best_bid_px_and_vol(self, bid_orderbook, bid1, bid2):
-        assert bid_orderbook.bbid[0] == bid1.price
-        assert bid_orderbook.bbid[1] == (bid1.qty + bid2.qty)
+        assert bid_orderbook.best_bid[0] == bid1.price
+        assert bid_orderbook.best_bid[1] == (bid1.qty + bid2.qty)
 
     def test_get_best_ask_px_and_vol(self, ask_orderbook, ask1, ask2):
-        assert ask_orderbook.bask[0] == ask1.price
-        assert ask_orderbook.bask[1] == (ask1.qty + ask2.qty)
+        assert ask_orderbook.best_ask[0] == ask1.price
+        assert ask_orderbook.best_ask[1] == (ask1.qty + ask2.qty)
 
     def test_get_order_by_uid(self, full_orderbook, bid3, ask4):
         bid3_order_info = full_orderbook.get(uid=bid3.uid)
@@ -52,19 +52,19 @@ class TestOrderbook:
 
     def test_reset_ob_all(self, full_orderbook):
         full_orderbook.reset_ob(reset_all=True)
-        assert full_orderbook.bbid is None
-        assert full_orderbook.bask is None
+        assert full_orderbook.best_bid is None
+        assert full_orderbook.best_ask is None
         assert len(full_orderbook._orders) == 0
 
     def test_bid_price_time_priority(self, bid_orderbook, bid1, bid2):
-        assert bid_orderbook._bids.best.head.uid == bid1.uid
-        assert bid_orderbook._bids.best.head.next.uid == bid2.uid
-        assert bid_orderbook._bids.best.tail.uid == bid2.uid
+        assert bid_orderbook._bids.head_pricelevel.head_order.uid == bid1.uid
+        assert bid_orderbook._bids.head_pricelevel.head_order.next.uid == bid2.uid
+        assert bid_orderbook._bids.head_pricelevel.tail_order.uid == bid2.uid
 
     def test_ask_price_time_priority(self, ask_orderbook, ask1, ask2):
-        assert ask_orderbook._asks.best.head.uid == ask1.uid
-        assert ask_orderbook._asks.best.head.next.uid == ask2.uid
-        assert ask_orderbook._asks.best.tail.uid == ask2.uid
+        assert ask_orderbook._asks.head_pricelevel.head_order.uid == ask1.uid
+        assert ask_orderbook._asks.head_pricelevel.head_order.next.uid == ask2.uid
+        assert ask_orderbook._asks.head_pricelevel.tail_order.uid == ask2.uid
 
     def test_canceled_bid_turns_inactive(self, bid_orderbook, bid1):
         assert bid_orderbook.get(bid1.uid)['active'] 
@@ -77,20 +77,20 @@ class TestOrderbook:
         assert not ask_orderbook.get(ask1.uid)['active'] 
         
     def test_cancel_bestbid_sets_new_bestbid(self, bid_orderbook, bid1, bid2):
-        assert bid_orderbook.bbid == (bid1.price, bid1.qty + bid2.qty)
+        assert bid_orderbook.best_bid == (bid1.price, bid1.qty + bid2.qty)
         bid_orderbook.cancel(bid1.uid)
         assert not bid_orderbook.get(bid1.uid)['active'] 
-        assert bid_orderbook.bbid == (bid2.price, bid2.qty)
-        assert bid_orderbook._bids.best.head.uid == bid2.uid
-        assert bid_orderbook._bids.best.tail.uid == bid2.uid
+        assert bid_orderbook.best_bid == (bid2.price, bid2.qty)
+        assert bid_orderbook._bids.head_pricelevel.head_order.uid == bid2.uid
+        assert bid_orderbook._bids.head_pricelevel.tail_order.uid == bid2.uid
         
     def test_cancel_bestask_sets_new_bestask(self, ask_orderbook, ask1, ask2):
-        assert ask_orderbook.bask == (ask1.price, ask1.qty + ask2.qty)
+        assert ask_orderbook.best_ask == (ask1.price, ask1.qty + ask2.qty)
         ask_orderbook.cancel(ask1.uid)
         assert not ask_orderbook.get(ask1.uid)['active'] 
-        assert ask_orderbook.bask == (ask2.price, ask2.qty)
-        assert ask_orderbook._asks.best.head.uid == ask2.uid
-        assert ask_orderbook._asks.best.tail.uid == ask2.uid
+        assert ask_orderbook.best_ask == (ask2.price, ask2.qty)
+        assert ask_orderbook._asks.head_pricelevel.head_order.uid == ask2.uid
+        assert ask_orderbook._asks.head_pricelevel.tail_order.uid == ask2.uid
     
     def test_empty_trades(self, full_orderbook):
         assert len(full_orderbook.trades_vol) == 0
@@ -103,10 +103,10 @@ class TestOrderbook:
         agg_ord = order(is_buy=True, qty=5000, price=0.4, uid=11)
         full_orderbook.send(*agg_ord)
         # ask halfbook is now empty
-        assert full_orderbook.bask is None
+        assert full_orderbook.best_ask is None
         # aggressive order swept all positions and rested in the book
         # setting the new best ask
-        assert full_orderbook.bbid == (agg_ord.price, agg_ord.qty - ask_liquidity)
+        assert full_orderbook.best_bid == (agg_ord.price, agg_ord.qty - ask_liquidity)
         # trades were done in the corresponding order by price-time priority 
         assert (full_orderbook.trades_vol == ask_vol_positions).all()
         assert (full_orderbook.trades_px == ask_px_positions).all()
@@ -119,10 +119,10 @@ class TestOrderbook:
         agg_ord = order(is_sell=False, qty=5000, price=0.1, uid=12)
         full_orderbook.send(*agg_ord)
         # bid halfbook is now empty
-        assert full_orderbook.bbid is None
+        assert full_orderbook.best_bid is None
         # aggressive order swept all positions and rested in the book
         # setting the new best ask
-        assert full_orderbook.bask == (agg_ord.price, agg_ord.qty - bid_liquidity)
+        assert full_orderbook.best_ask == (agg_ord.price, agg_ord.qty - bid_liquidity)
         # trades were done in the corresponding order by price-time priority 
         assert (full_orderbook.trades_vol == bid_vol_positions).all()
         assert (full_orderbook.trades_px == bid_px_positions).all()
@@ -238,7 +238,7 @@ class TestOrderbook:
             bid1.qty, bid2.qty, bid5.qty, 0, 0
         ]).all()
 
-        assert bid_orderbook.bask == (min_price, vol_above_liquidity)
+        assert bid_orderbook.best_ask == (min_price, vol_above_liquidity)
 
 
     def test_cancel_intermediate_positions_in_price_level_and_then_sweep(
@@ -285,7 +285,7 @@ class TestOrderbook:
             bid1.qty, bid2.qty, bid3.qty, bid6.qty, bid5.qty, 0
         ]).all()
 
-        assert bid_orderbook.bask == (min_price, vol_above_liquidity)
+        assert bid_orderbook.best_ask == (min_price, vol_above_liquidity)
 
         
     def test_cancel_top_position_in_intermediate_price_level_and_then_sweep(
@@ -319,7 +319,7 @@ class TestOrderbook:
             bid1.qty, bid2.qty, bid4.qty, bid5.qty, 0
         ]).all()
 
-        assert bid_orderbook.bask == (min_price, vol_above_liquidity)
+        assert bid_orderbook.best_ask == (min_price, vol_above_liquidity)
 
 
     def test_vwap(
@@ -401,7 +401,6 @@ class TestOrderbook:
         # We modify the first order in the second price level
         # sice we are reducing the volume, this should not change
         # the price-time priority of these orders
-        import pdb;pdb.set_trace()
         full_orderbook.modif(uid=bid3.uid, qty_down=1)
         bid3 = full_orderbook.get(uid=bid3.uid)
         full_orderbook.modif(uid=ask3.uid, qty_down=1)

@@ -1,9 +1,12 @@
-import setuptools
+import io
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+from setuptools import setup, find_packages
 
-setuptools.setup(
+def readme():
+    with io.open('README.md', encoding='utf-8') as f:
+        return f.read()
+
+setup(
     name="marketsimulator",
     version="0.0.1",
     author="Francisco Merlos and Jesús Sanz",
@@ -11,10 +14,9 @@ setuptools.setup(
     license='MIT License',
     description="Realistic market matching engine simulator \
                  for HFT trading strategies",
-    long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Surbeivol/PythonMatchingEngine",
-    packages=setuptools.find_packages(),
+    packages=find_packages(),
     install_requires=[
         'cycler==0.10.0',
         'kiwisolver==1.1.0',
