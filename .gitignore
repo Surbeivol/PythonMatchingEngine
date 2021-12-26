@@ -8,3 +8,4 @@ virtenv_ob/*
 venv/*
 build/*
 dist/*
+*.egg-info
