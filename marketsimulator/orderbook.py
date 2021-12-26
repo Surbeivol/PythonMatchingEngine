@@ -7,14 +7,20 @@ Created on Thu May 16 14:14:51 2019
 
 @author: Francisco Merlos
 """
-from abc import ABC, abstractmethod
 from datetime import datetime
-from config.configuration_yaml import Configuration
+
 from marketsimulator.prices_idx import get_band_dicts
 import numpy as np
 import pandas as pd
 import pdb
 import warnings
+
+from config.configuration_yaml import Configuration
+from .order import Order
+from .pricelevel import PriceLevel
+from .side import Side
+from .asks import Asks
+from .bids import Bids
 
 config = Configuration()
 TICKER_BANDS = config.get_liq_bands()
@@ -27,6 +33,13 @@ TICK_SIZE_REGIME_URL = 'https://www.emissions-euets.com/tick-size-regime'
 
 
 class Orderbook:
+    """ 
+        An orderbook is composed of two sides. The Bid side and the Ask side.
+        Each side will consist of a liked list of PriceLevels ordered by price.
+        In the Asks side, the prices are ordered from lower (head) to higher (tail).
+        In the Bids side, the prices go from higher (head) to lower (tail)
+        Each PriceLevel consist of a linked list of Orders, ordered by arrival time
+    """
 
     def __init__(self, ticker, max_impact=20, resilience=0):
 
@@ -158,19 +171,19 @@ class Orderbook:
 
     # Best Bid
     @property
-    def bbid(self):
-        if self._bids.best is None:
+    def best_bid(self):
+        if self._bids.best_pricelevel is None:
             return None
         else:
-            return self._bids.best.price, self._bids.best.vol
+            return self._bids.best_price, self._bids.best_vol
 
     # Best ask
     @property
-    def bask(self):
-        if self._asks.best is None:
+    def best_ask(self):
+        if self._asks.best_pricelevel is None:
             return None
         else:
-            return self._asks.best.price, self._asks.best.vol
+            return self._asks.best_price, self._asks.best_vol
 
     def compute_vwap(self, trades):
 
@@ -343,39 +356,25 @@ class Orderbook:
         
         """
         order = self._orders[uid]
-
+        if not order.active:
+            return
+        if order.is_buy:
+            pricelevel = self._bids.pricelevel(order.price)
+            pricelevel.remove(order)
+            if pricelevel.is_empty():
+                self._bids.remove_pricelevel(order.price)
+        else:
+            pricelevel = self._asks.pricelevel(order.price)
+            pricelevel.remove(order)
+            if pricelevel.is_empty():
+                self._asks.remove_pricelevel(order.price)
+    
         if uid <  0:
             self.my_cumvol_sent -= order.leavesqty
-
-        if order.active:
-
-            if order.is_buy:
-                pricelevel = self._bids.book[order.price]
-            else:
-
-                pricelevel = self._asks.book[order.price]
-
-            # right side
-            if order.next is None:
-                pricelevel.tail = order.prev
-                if order is pricelevel.head:
-                    self._remove_price(order.is_buy, order.price)
-                else:
-                    order.prev.next = None
-                    # left side
-            elif order is pricelevel.head:
-                pricelevel.head = order.next
-                order.next.prev = None
-            # middle
-            else:
-                order.next.prev = order.prev
-                order.prev.next = order.next
-
-            order._cumqty = order.qty - order.leavesqty
-            order.leavesqty = 0
-            order.active = False
-
-        return
+        order._cumqty = order.qty - order.leavesqty
+        order.leavesqty = 0
+        order.active = False
+        
 
     def modif(self, uid, qty_down):
         """ Modify an order identified by its uid. 
@@ -419,10 +418,12 @@ class Orderbook:
 
         is_agg = True
         if order.is_buy:
-            if self._asks.best is None or self._asks.best.price > order.price:
+            if self._asks.best_pricelevel is None or \
+                self._asks.best_price > order.price:
                 is_agg = False
         else:
-            if self._bids.best is None or self._bids.best.price < order.price:
+            if self._bids.best_pricelevel is None or \
+                self._bids.best_price < order.price:
                 is_agg = False
         return is_agg
 
@@ -508,24 +509,24 @@ class Orderbook:
         breaking = False
 
         if order.is_buy:
-            best = self._asks.best
+            best = self._asks.best_pricelevel
             agg_effect_side = 1
         else:
-            best = self._bids.best
+            best = self._bids.best_pricelevel
             agg_effect_side = -1
 
-        init_best_vol = best.head.leavesqty
+        init_best_vol = best.head_order.leavesqty
 
         assert order.leavesqty > 0
         while order.leavesqty > 0:
 
-            if best.head.leavesqty <= order.leavesqty:
-                trdqty = best.head.leavesqty
-                best.head.leavesqty = 0
+            if best.head_order.leavesqty <= order.leavesqty:
+                trdqty = best.head_order.leavesqty
+                best.head_order.leavesqty = 0
 
-                if best.head.uid < 0:
+                if best.head_order.uid < 0:
                     my_trade = True
-                    my_uid = best.head.uid
+                    my_uid = best.head_order.uid
                 elif order.uid < 0:
                     my_trade = True
                     my_agg_vol += trdqty
@@ -535,19 +536,19 @@ class Orderbook:
                     ob_agg_vol += trdqty
 
                 price = best.price
-                best_uid = best.head.uid
+                best_uid = best.head_order.uid
 
                 best.pop()
                 order.leavesqty -= trdqty
-                if best.head is None:
+                if best.head_order is None:
                     # remove PriceLevel from the order's opposite side
                     self._remove_price(not order.is_buy, best.price)
                     breaking = True
             else:
                 trdqty = order.leavesqty
-                if best.head.uid < 0:
+                if best.head_order.uid < 0:
                     my_trade = True
-                    my_uid = best.head.uid
+                    my_uid = best.head_order.uid
                 elif order.uid < 0:
                     my_trade = True
                     my_agg_vol += trdqty
@@ -557,9 +558,9 @@ class Orderbook:
                     ob_agg_vol += trdqty
 
                 price = best.price
-                best_uid = best.head.uid
+                best_uid = best.head_order.uid
 
-                best.head.leavesqty -= order.leavesqty
+                best.head_order.leavesqty -= order.leavesqty
                 order.leavesqty = 0
 
             if price == np.inf:
@@ -617,19 +618,10 @@ class Orderbook:
             is_buy (bool): True to remove a PriceLevel from the Bids
         
         """
-
         if is_buy:
-            del self._bids.book[price]
-            if len(self._bids.book) > 0:
-                self._bids.best = self._bids.book[max(self._bids.book.keys())]
-            else:
-                self._bids.best = None
+            self._bids.remove_pricelevel(price)
         else:
-            del self._asks.book[price]
-            if len(self._asks.book) > 0:
-                self._asks.best = self._asks.book[min(self._asks.book.keys())]
-            else:
-                self._asks.best = None
+            self._asks.remove_pricelevel(price)
 
     def top_bidpx(self, nlevels):
         """ Returns the first nlevels of the Bids ordered by price desc
@@ -640,28 +632,10 @@ class Orderbook:
             the first nlevels of the Bids ordered by price desc
         """
 
-        pbids = nlevels * [np.nan]
+        best_bid_prices = self._bids.best_n_prices(nlevels)
+        return [price if price is not None else np.nan 
+                for price in best_bid_prices]
 
-        try:
-            bbid = self._bids.best.price
-        except:
-            return pbids
-
-        next_bbidpx = bbid
-        pbids[0] = next_bbidpx
-        n_px = min(nlevels, len(self._bids.book))
-        px_found = 1
-
-        while px_found < n_px:
-            nextpx = self.get_new_price(next_bbidpx, -1)
-            next_bbidpx = nextpx
-            if next_bbidpx in self._bids.book:
-                pbids[px_found] = nextpx
-                px_found += 1
-            else:
-                continue
-
-        return pbids
 
     def top_askpx(self, nlevels):
         """ Returns the first nlevels of the Ask ordered by price asc
@@ -673,78 +647,61 @@ class Orderbook:
             first nlevels of the Ask ordered by price asc
         """
 
-        pasks = nlevels * [np.nan]
-        try:
-            bask = self._asks.best.price
-        except:
-            return pasks
-
-        next_baskpx = bask
-        pasks[0] = next_baskpx
-        n_px = min(nlevels, len(self._asks.book))
-        px_found = 1
-
-        while px_found < n_px:
-            nextpx = self.get_new_price(next_baskpx, 1)
-            next_baskpx = nextpx
-            if next_baskpx in self._asks.book:
-                pasks[px_found] = nextpx
-                px_found += 1
-            else:
-                continue
-        return pasks
+        best_ask_prices = self._asks.best_n_prices(nlevels)
+        return [price if price is not None else np.nan 
+                for price in best_ask_prices]
 
     def top_bids_cumvol(self, nlevels):
 
         nlvl_vol = 0
 
         try:
-            bbid = self._bids.best.price
+            best_bid = self._bids.best_price
         except:
             return nlvl_vol, None
 
-        nlvl_vol += self._bids.book[bbid].vol
-        next_bbidpx = bbid
+        nlvl_vol += self._bids.book[best_bid].vol
+        next_best_bidpx = best_bid
         n_px = min(nlevels, len(self._bids.book))
         px_found = 1
 
         while px_found < n_px:
-            nextpx = self.get_new_price(next_bbidpx, -1)
-            next_bbidpx = nextpx
+            nextpx = self.get_new_price(next_best_bidpx, -1)
+            next_best_bidpx = nextpx
 
             try:
-                nlvl_vol += self._bids.book[next_bbidpx].vol
+                nlvl_vol += self._bids.book[next_best_bidpx].vol
                 px_found += 1
             except KeyError:
                 continue
 
-        return nlvl_vol, next_bbidpx
+        return nlvl_vol, next_best_bidpx
 
     def top_asks_cumvol(self, nlevels):
 
         nlvl_vol = 0
 
         try:
-            bask = self._asks.best.price
+            best_ask = self._asks.best_price
         except:
             return nlvl_vol, None
 
-        nlvl_vol += self._asks.book[bask].vol
-        next_baskpx = bask
+        nlvl_vol += self._asks.book[best_ask].vol
+        next_best_askpx = best_ask
         n_px = min(nlevels, len(self._asks.book))
         px_found = 1
 
         while px_found < n_px:
-            nextpx = self.get_new_price(next_baskpx, 1)
-            next_baskpx = nextpx
+            nextpx = self.get_new_price(next_best_askpx, 1)
+            next_best_askpx = nextpx
 
             try:
-                nlvl_vol += self._asks.book[next_baskpx].vol
+                nlvl_vol += self._asks.book[next_best_askpx].vol
                 px_found += 1
             except KeyError:
                 continue
 
-        return nlvl_vol, next_baskpx
+        return nlvl_vol, next_best_askpx
 
 
     def top_bids(self, nlevels):
@@ -761,19 +718,19 @@ class Orderbook:
         pbids = nlevels * [np.nan]
         vbids = nlevels * [np.nan]
         try:
-            bbid = self._bids.best.price
+            best_bid = self._bids.best_price
         except:
             return [pbids, vbids]
 
-        vbids[0] = self._bids.book[bbid].vol
-        next_bbidpx = bbid
-        pbids[0] = next_bbidpx
+        vbids[0] = self._bids.book[best_bid].vol
+        next_best_bidpx = best_bid
+        pbids[0] = next_best_bidpx
         n_px = min(nlevels, len(self._bids.book))
         px_found = 1
 
         while px_found < n_px:
-            nextpx = self.get_new_price(next_bbidpx, -1)
-            next_bbidpx = nextpx
+            nextpx = self.get_new_price(next_best_bidpx, -1)
+            next_best_bidpx = nextpx
             try:
                 vbids[px_found] = self._bids.book[nextpx].vol
                 pbids[px_found] = nextpx
@@ -798,19 +755,19 @@ class Orderbook:
         pasks = nlevels * [np.nan]
         vasks = nlevels * [np.nan]
         try:
-            bask = self._asks.best.price
+            best_ask = self._asks.best_price
         except:
             return [pasks, vasks]
 
-        vasks[0] = self._asks.book[bask].vol
-        next_baskpx = bask
-        pasks[0] = next_baskpx
+        vasks[0] = self._asks.book[best_ask].vol
+        next_best_askpx = best_ask
+        pasks[0] = next_best_askpx
         n_px = min(nlevels, len(self._asks.book))
         px_found = 1
 
         while px_found < n_px:
-            nextpx = self.get_new_price(next_baskpx, 1)
-            next_baskpx = nextpx
+            nextpx = self.get_new_price(next_best_askpx, 1)
+            next_best_askpx = nextpx
             try:
                 vasks[px_found] = self._asks.book[nextpx].vol
                 pasks[px_found] = nextpx
@@ -827,126 +784,3 @@ class Orderbook:
         return str(df)
 
 
-class Order:
-    """ Represents an order inside the orderbook with its current status 
-    
-    """
-
-    # __slots__ = ["uid", "is_buy", "qty", "price", "timestamp", "status"]
-
-    def __init__(self, uid, is_buy, qty, price, timestamp=datetime.now()):
-        self.uid = uid
-        self.is_buy = is_buy
-        self.qty = qty
-        # outstanding volume in orderbook. If filled or canceled => 0. 
-        self.leavesqty = qty
-        # You should not access _cumqty directly.
-        # Use cumqty property instead
-        self._cumqty = None
-        self.price = price
-        self.timestamp = timestamp
-        # is the order active and resting in the orderbook?
-        self.active = False
-        # DDL attributes import unittest
-        self.prev = None
-        self.next = None
-
-    @property
-    def cumqty(self):
-        if self._cumqty:
-            return self._cumqty
-        else:
-            return self.qty - self.leavesqty
-
-
-class PriceLevel:
-    """ Represents a price in the orderbook with its order queue
-    
-    """
-
-    def __init__(self, order):
-        self.price = order.price
-        self.head = order
-        self.tail = order
-
-    # Cummulative volume of all orders at this PriceLevel
-    @property
-    def vol(self):
-        vol = 0
-        next_order = self.head
-        while next_order is not None:
-            vol += next_order.leavesqty
-            next_order = next_order.next
-        return vol
-
-    def append(self, order):
-        self.tail.next = order
-        order.prev = self.tail
-        self.tail = order
-
-    def pop(self):
-        self.head.active = False
-        if self.head.next is None:
-            self.head = None
-            self.tail = None
-        else:
-            self.head.next.prev = None
-            self.head = self.head.next
-
-
-class HalfBook(ABC):
-    """ Abstract class representing the common properties of a half orderbook.
-    Bids or Asks half orderbooks that inherit from it 
-    will have different is_new_best methods    
-    """
-
-    def __init__(self):
-        self.book = dict()
-        # Pointer to Best PriceLevel 
-        self.best = None
-
-    def add(self, order):
-        if order.price in self.book:
-            self.book[order.price].append(order)
-        else:
-            new_pricelevel = PriceLevel(order)
-            self.book.update({order.price: new_pricelevel})
-            if self.best is None or self.is_new_best(order):
-                self.best = new_pricelevel
-        order.active = True
-
-    @abstractmethod
-    def is_new_best(self, order):
-        pass
-
-
-class Bids(HalfBook):
-    """ Bids Orderbook where best PriceLevel has highest price
-        Implements is_new_best abstract method that behaves differently
-        for Bids or Asks
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    def is_new_best(self, order):
-        if order.price > self.best.price:
-            return True
-        else:
-            return False
-
-
-class Asks(HalfBook):
-    """ Asks Orderbook where best PriceLevel has lowest price
-        Implements is_new_best abstract method that behaves differently
-        for Bids or Asks
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    def is_new_best(self, order):
-        if order.price < self.best.price:
-            return True
-        else:
-            return False

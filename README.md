@@ -89,10 +89,10 @@ array([30., 50., 60.])
 >>> ob.trades_px
 array([10.002, 10.002, 10.004])
 # New best bid
->>> ob.bbid
+>>> ob.best_bid
 (10.008, 60)
 # New best ask
->>> ob.bask is None
+>>> ob.best_ask is None
 True
 ```
 
@@ -220,7 +220,7 @@ of your orders before reaching the market (20 ms in this example)
 
 ```
 # Check best ask price to set as our target price
-target_price = gtw.ob.bask[0]
+target_price = gtw.ob.best_ask[0]
 mkt_time_when_target_px_showed = gtw.ob_time
 print(f'We just saw ask price:{target_price}'  \
         f' that happened at time {mkt_time_when_target_px_showed}')

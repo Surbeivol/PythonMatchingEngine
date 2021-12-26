@@ -28,7 +28,7 @@ class BuyTheBid:
         new_qty = min(self.child_vol, self.care_leave)                    
         self.leave_uid = gtw.queue_my_new(is_buy=True,
                                     qty=new_qty,
-                                    price=gtw.ob.bbid[0])
+                                    price=gtw.ob.best_bid[0])
         
         
     def eval_and_act(self, gtw):
@@ -48,7 +48,7 @@ class BuyTheBid:
                 else:
                     self.done = True
             # if not in best bid, modif price
-            elif leave_ord['price'] != gtw.ob.bbid[0]:                
+            elif leave_ord['price'] != gtw.ob.best_bid[0]:                
                 gtw.queue_my_cancel(uid=self.leave_uid)
                 self.send_new_child(gtw)
                 
