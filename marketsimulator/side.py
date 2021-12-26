@@ -55,6 +55,7 @@ class Side(ABC):
             pricelevel.prev.next = pricelevel.next
             pricelevel.next.prev = pricelevel.prev
 
+    @abstractmethod
     def price1_has_higher_priority_than_price2(self, price1, price2):
         raise NotImplementedError
 
