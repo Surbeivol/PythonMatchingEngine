@@ -98,31 +98,24 @@ class Orderbook:
         self.my_ntrds = 0
         self.cumvol = 0
         self.my_cumvol = 0
-        self.cumturn = 0.
-        self.my_cumturn = 0.
         self.market_impact = 0
         self.my_cumvol_sent = 0
         self.last_px = None
 
     def reset_ob(self, reset_all):
-
         if reset_all:
             self._bids = Bids()
             self._asks = Asks()
             self.create_stats_dict()
             self._orders = dict()
-
         self.n_my_orders = 0
         self.ntrds = 0
         self.my_ntrds = 0
         self.cumvol = 0
         self.my_cumvol = 0
-        self.cumturn = 0.
-        self.my_cumturn = 0.
         self.market_impact = 0
 
     def create_stats_dict(self, stat_dict=None):
-
         if stat_dict == 'trades' or stat_dict is None:
             self.trades = {
                 key: np.zeros(self.inc)
@@ -156,10 +149,7 @@ class Orderbook:
                                                        self.def_day)
 
     def inc_dict_size(self, stat_dict, inc):
-
-        # default array
-        def_arr = np.zeros(inc)
-        # default day
+        def_arr = np.zeros(inc)        
         def_day = np.full(inc, self.def_day)
 
         new_dict = {(key): (np.hstack([stat_dict[key], def_arr])
@@ -186,7 +176,6 @@ class Orderbook:
             return self._asks.best_price, self._asks.best_vol
 
     def compute_vwap(self, trades):
-
         return (np.sum(trades['price'] * trades['vol'])
                 / np.sum(trades['vol']))
 
@@ -206,7 +195,7 @@ class Orderbook:
 
     @property
     def my_pov(self):
-        if self.cumturn > 0:
+        if self.cumvol > 0:
             return self.my_cumvol / self.cumvol
         else:
             return 0
@@ -322,7 +311,6 @@ class Orderbook:
         while (neword.leavesqty > 0):
             if self._is_aggressive(neword):
                 self._sweep_best_price(neword)
-            #                self.update_metrics(trdpx=exe_px,trdqty=exe_vol)
             else:
                 if is_buy:
                     self._bids.add(neword)
@@ -515,11 +503,9 @@ class Orderbook:
             best = self._bids.best_pricelevel
             agg_effect_side = -1
 
-        init_best_vol = best.head_order.leavesqty
+        init_best_vol = best.vol
 
-        assert order.leavesqty > 0
         while order.leavesqty > 0:
-
             if best.head_order.leavesqty <= order.leavesqty:
                 trdqty = best.head_order.leavesqty
                 best.head_order.leavesqty = 0
@@ -564,11 +550,9 @@ class Orderbook:
                 order.leavesqty = 0
 
             if price == np.inf:
-                pdb.set_trace()
+                raise ValueError("price is Infinite")
 
-            turn = trdqty * price
             self.cumvol += trdqty
-            self.cumturn += turn
             stats = [price, trdqty, order.uid, best_uid,
                      order.is_buy, order.timestamp]
             self.update_last_trades(stats=stats, pos=n_newtrd)
@@ -576,7 +560,6 @@ class Orderbook:
 
             if my_trade:
                 self.my_cumvol += trdqty
-                self.my_cumturn += turn
                 if restart_my_last_trades:
                     self.create_stats_dict(stat_dict='my_last_trades')
                     restart_my_last_trades = False
