@@ -1,4 +1,3 @@
-from numpy.core.numeric import full
 from marketsimulator.orderbook import Orderbook
 from collections import namedtuple
 import numpy as np
