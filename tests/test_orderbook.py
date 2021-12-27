@@ -1,3 +1,4 @@
+from numpy.core.numeric import full
 from marketsimulator.orderbook import Orderbook
 from collections import namedtuple
 import numpy as np
@@ -433,3 +434,40 @@ class TestOrderbook:
             bid1.qty, bid2.qty, bid3['qty'], bid4.qty, bid5.qty, 
             ask1.qty, ask2.qty, ask3['qty'], ask4.qty, ask5.qty, 
             0]).all()
+    
+    def test_market_cumvol_cumturn(self, full_orderbook, bid1, bid2, ask1, ask2):
+        order = namedtuple('Order', 'is_buy, qty, price, uid')
+        mkt_sell_qty = bid1.qty+bid2.qty
+        agg_sell_order = order(is_buy=False, 
+            qty=mkt_sell_qty,
+            price=bid2.price,
+            uid=100)
+        full_orderbook.send(*agg_sell_order)
+        
+        assert full_orderbook.cumvol == mkt_sell_qty        
+        assert full_orderbook.my_cumvol == 0
+
+        own_buy_qty = ask1.qty+ask2.qty
+        agg_buy_order = order(is_buy=True, 
+            qty=own_buy_qty,
+            price=ask2.price,
+            uid=-1)
+        full_orderbook.send(*agg_buy_order)
+
+        assert full_orderbook.cumvol == mkt_sell_qty + own_buy_qty
+        assert full_orderbook.my_cumvol == own_buy_qty
+
+        own_crossing_qty = 77
+        passive_own_sell = order(is_buy=False,
+            qty=own_crossing_qty,
+            price=ask2.price,
+            uid=-2)
+        full_orderbook.send(*passive_own_sell)
+        aggressive_own_buy = order(is_buy=True,
+            qty=own_crossing_qty,
+            price=ask2.price,
+            uid=-3)
+        full_orderbook.send(*aggressive_own_buy)
+
+        assert full_orderbook.cumvol == mkt_sell_qty + own_buy_qty + own_crossing_qty
+        assert full_orderbook.my_cumvol == own_buy_qty + own_crossing_qty
