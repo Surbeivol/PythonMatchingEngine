@@ -31,3 +31,13 @@ def test_remove():
 
     pricelevel.remove(first_order)
     assert pricelevel.head_order is second_order
+
+def test_pop():
+    first_order = Order(uid=1, is_buy=True, qty=1, price=5)
+    pricelevel = PriceLevel(first_order)
+
+    second_order = Order(uid=2, is_buy=True, qty=1, price=5)
+    pricelevel.append(second_order)
+
+    pop_order = pricelevel.pop()
+    assert pricelevel.head_order is second_order
