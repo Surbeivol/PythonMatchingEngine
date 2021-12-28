@@ -144,23 +144,7 @@ class TestOrderbook:
         expected = [[0.2, 0.19, 0.18, np.nan, np.nan],
                     [100+200, 300+400, 500, np.nan, np.nan]] 
         assert full_orderbook.top_bids(nlevels=5) == expected
-    
-    def test_top_bids_cumvol_part_of_book(self, full_orderbook):
-        expected = (1000, 0.19)
-        assert full_orderbook.top_bids_cumvol(2) == expected
-
-    def test_top_asks_cumvol_part_of_book(self, full_orderbook):
-        expected = (3000, 0.31)
-        assert full_orderbook.top_asks_cumvol(2) == expected
-
-    def test_top_bids_cumvol_whole_book(self, full_orderbook):
-        expected = (1500, 0.18)
-        assert full_orderbook.top_bids_cumvol(10) == expected
-
-    def test_top_asks_cumvol_whole_book(self, full_orderbook):
-        expected = (4000, 0.32)
-        assert full_orderbook.top_asks_cumvol(10) == expected
-    
+        
     def test_modif_reduce_third_leavesqty(self, full_orderbook, ask5):
         down_qty = ask5.qty // 3 
         full_orderbook.modif(uid=ask5.uid, qty_down=down_qty)
@@ -470,3 +454,59 @@ class TestOrderbook:
 
         assert full_orderbook.cumvol == mkt_sell_qty + own_buy_qty + own_crossing_qty
         assert full_orderbook.my_cumvol == own_buy_qty + own_crossing_qty
+    
+    def test_top_bids_cumvol_2_orders_in_first_level(
+        self,
+        bid_orderbook,
+        bid1,
+        bid2):
+
+        bids_cumvol = bid_orderbook.top_bids_cumvol(1)
+        expect_qty = bid1.qty + bid2.qty
+        expect_price = bid2.price
+
+        assert bids_cumvol == (expect_qty, expect_price) 
+
+    def test_top_bids_cumvol_whole_book(
+        self,
+        bid_orderbook,
+        bid1,
+        bid2,
+        bid3,
+        bid4,
+        bid5):
+
+        bids_cumvol = bid_orderbook.top_bids_cumvol(100)
+        expect_qty = bid1.qty + bid2.qty + bid3.qty + bid4.qty + bid5.qty
+        expect_price = bid5.price
+
+        assert bids_cumvol == (expect_qty, expect_price) 
+
+    def test_top_asks_cumvol_2_orders_in_first_level(
+        self,
+        ask_orderbook,
+        ask1,
+        ask2):
+
+
+        asks_cumvol = ask_orderbook.top_asks_cumvol(1)
+        expect_qty = ask1.qty + ask2.qty
+        expect_price = ask2.price
+
+        assert asks_cumvol == (expect_qty, expect_price) 
+
+    def test_top_asks_cumvol_whole_book(
+        self,
+        ask_orderbook,
+        ask1,
+        ask2,
+        ask3,
+        ask4,
+        ask5):
+
+        asks_cumvol = ask_orderbook.top_asks_cumvol(100)
+        expect_qty = ask1.qty + ask2.qty + ask3.qty + ask4.qty + ask5.qty
+        expect_price = ask5.price
+
+        assert asks_cumvol == (expect_qty, expect_price) 
+
