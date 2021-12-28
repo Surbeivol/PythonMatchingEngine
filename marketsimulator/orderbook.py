@@ -634,58 +634,36 @@ class Orderbook:
         return [price if price is not None else np.nan 
                 for price in best_ask_prices]
 
+    
+    def top_n_pricelevel_vol(self, nlevels, side):
+        """
+            nlevels(int): number of pricelevels to consider when
+            adding volume of the first positions of the book
+            side("_bids" or "_asks"): which side of the orderbook
+        """
+        level = 0
+        vol = 0
+        if side == "bids":
+            current_pricelevel = self._bids.best_pricelevel
+        elif side == "asks":
+            current_pricelevel = self._asks.best_pricelevel
+        else:
+            raise ValueError("Parameter side must be bids or asks")
+
+        if current_pricelevel is None:
+            return vol, None
+        while (current_pricelevel is not None) and (level < nlevels):
+            vol += current_pricelevel.vol
+            n_level_price = current_pricelevel.price
+            current_pricelevel = current_pricelevel.next
+            level += 1
+        return vol, n_level_price
+    
     def top_bids_cumvol(self, nlevels):
-
-        nlvl_vol = 0
-
-        try:
-            best_bid = self._bids.best_price
-        except:
-            return nlvl_vol, None
-
-        nlvl_vol += self._bids.book[best_bid].vol
-        next_best_bidpx = best_bid
-        n_px = min(nlevels, len(self._bids.book))
-        px_found = 1
-
-        while px_found < n_px:
-            nextpx = self.get_new_price(next_best_bidpx, -1)
-            next_best_bidpx = nextpx
-
-            try:
-                nlvl_vol += self._bids.book[next_best_bidpx].vol
-                px_found += 1
-            except KeyError:
-                continue
-
-        return nlvl_vol, next_best_bidpx
-
+        return self.top_n_pricelevel_vol(nlevels, "bids")
+        
     def top_asks_cumvol(self, nlevels):
-
-        nlvl_vol = 0
-
-        try:
-            best_ask = self._asks.best_price
-        except:
-            return nlvl_vol, None
-
-        nlvl_vol += self._asks.book[best_ask].vol
-        next_best_askpx = best_ask
-        n_px = min(nlevels, len(self._asks.book))
-        px_found = 1
-
-        while px_found < n_px:
-            nextpx = self.get_new_price(next_best_askpx, 1)
-            next_best_askpx = nextpx
-
-            try:
-                nlvl_vol += self._asks.book[next_best_askpx].vol
-                px_found += 1
-            except KeyError:
-                continue
-
-        return nlvl_vol, next_best_askpx
-
+        return self.top_n_pricelevel_vol(nlevels, "asks")
 
     def top_bids(self, nlevels):
         """ Returns the first nlevels best bids of the book, including
