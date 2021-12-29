@@ -678,27 +678,18 @@ class Orderbook:
         """
         pbids = nlevels * [np.nan]
         vbids = nlevels * [np.nan]
-        try:
-            best_bid = self._bids.best_price
-        except:
+        
+        current_pricelevel = self._bids.best_pricelevel
+        if current_pricelevel is None:
             return [pbids, vbids]
-
-        vbids[0] = self._bids.book[best_bid].vol
-        next_best_bidpx = best_bid
-        pbids[0] = next_best_bidpx
-        n_px = min(nlevels, len(self._bids.book))
-        px_found = 1
-
-        while px_found < n_px:
-            nextpx = self.get_new_price(next_best_bidpx, -1)
-            next_best_bidpx = nextpx
-            try:
-                vbids[px_found] = self._bids.book[nextpx].vol
-                pbids[px_found] = nextpx
-                px_found += 1
-            except KeyError:
-                continue
-
+        
+        level = 0
+        while current_pricelevel and (level < nlevels):
+            pbids[level] = current_pricelevel.price
+            vbids[level] = current_pricelevel.vol
+            current_pricelevel = current_pricelevel.next
+            level += 1
+        
         return [pbids, vbids]
 
     def top_asks(self, nlevels):
@@ -715,27 +706,18 @@ class Orderbook:
 
         pasks = nlevels * [np.nan]
         vasks = nlevels * [np.nan]
-        try:
-            best_ask = self._asks.best_price
-        except:
+        
+        current_pricelevel = self._asks.best_pricelevel
+        if current_pricelevel is None:
             return [pasks, vasks]
-
-        vasks[0] = self._asks.book[best_ask].vol
-        next_best_askpx = best_ask
-        pasks[0] = next_best_askpx
-        n_px = min(nlevels, len(self._asks.book))
-        px_found = 1
-
-        while px_found < n_px:
-            nextpx = self.get_new_price(next_best_askpx, 1)
-            next_best_askpx = nextpx
-            try:
-                vasks[px_found] = self._asks.book[nextpx].vol
-                pasks[px_found] = nextpx
-                px_found += 1
-            except KeyError:
-                continue
-
+        
+        level = 0
+        while current_pricelevel and (level < nlevels):
+            pasks[level] = current_pricelevel.price
+            vasks[level] = current_pricelevel.vol
+            current_pricelevel = current_pricelevel.next
+            level += 1
+        
         return [pasks, vasks]
 
     def __str__(self):
