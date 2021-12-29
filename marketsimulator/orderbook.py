@@ -720,6 +720,44 @@ class Orderbook:
         
         return [pasks, vasks]
 
+    def print_level3(self, nlevels):
+
+        level = 0
+        pxbids = []
+        volbids = []
+        current_pricelevel = self._bids.best_pricelevel
+        while current_pricelevel and (level < nlevels):
+            current_order = current_pricelevel.head_order
+            while current_order:
+                pxbids.append(current_order.price)
+                volbids.append(current_order.leavesqty)
+                current_order = current_order.next
+            current_pricelevel = current_pricelevel.next
+        
+        level = 0
+        pxasks = []
+        volasks = []
+        current_pricelevel = self._asks.best_pricelevel
+        while current_pricelevel and (level < nlevels):
+            current_order = current_pricelevel.head_order
+            while current_order:
+                pxasks.append(current_order.price)
+                volasks.append(current_order.leavesqty)
+                current_order = current_order.next
+            current_pricelevel = current_pricelevel.next
+    
+        len_diff = len(pxasks) - len(pxbids)
+        if len_diff > 0:
+            pxbids += len_diff*[np.nan]
+        elif len_diff < 0:
+            pxasks += len_diff*[np.nan]
+        
+        return pd.DataFrame({'vbid': volbids, 'pbid': pxbids, 'pask': pxasks, 'vask': volasks})
+        
+
+
+
+
     def __str__(self):
         pbid, vbid = self.top_bids(10)
         pask, vask = self.top_asks(10)
