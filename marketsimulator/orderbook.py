@@ -720,8 +720,7 @@ class Orderbook:
         
         return [pasks, vasks]
 
-    def print_level3(self, nlevels):
-
+    def get_orders_ladder(self, nlevels):
         level = 0
         pxbids = []
         volbids = []
@@ -753,10 +752,6 @@ class Orderbook:
             pxasks += len_diff*[np.nan]
         
         return pd.DataFrame({'vbid': volbids, 'pbid': pxbids, 'pask': pxasks, 'vask': volasks})
-        
-
-
-
 
     def __str__(self):
         pbid, vbid = self.top_bids(10)
