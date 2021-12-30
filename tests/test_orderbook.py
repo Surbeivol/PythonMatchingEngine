@@ -1,6 +1,7 @@
 from marketsimulator.orderbook import Orderbook
 from collections import namedtuple
 import numpy as np
+import pandas as pd
 
 
 class TestOrderbook:
@@ -510,3 +511,25 @@ class TestOrderbook:
 
         assert asks_cumvol == (expect_qty, expect_price) 
 
+    def test_get_orders_ladder(
+        self,
+        full_orderbook,
+        bid1, 
+        bid2, 
+        bid3, 
+        bid4, 
+        bid5,
+        ask1,
+        ask2,
+        ask3,
+        ask4,
+        ask5):
+
+        pxbids = [bid1.price, bid2.price, bid3.price, bid4.price, bid5.price]
+        volbids = [bid1.qty, bid2.qty, bid3.qty, bid4.qty, bid5.qty]
+        pxasks = [ask1.price, ask2.price, ask3.price, ask4.price, ask5.price]
+        volasks = [ask1.qty, ask2.qty, ask3.qty, ask4.qty, ask5.qty]
+
+        expected = pd.DataFrame({'vbid': volbids, 'pbid': pxbids, 'pask': pxasks, 'vask': volasks})
+
+        assert (expected == full_orderbook.get_orders_ladder(10)).all().all()
