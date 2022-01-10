@@ -415,12 +415,6 @@ class Orderbook:
                 is_agg = False
         return is_agg
 
-    #    def update_metrics(self, trdpx, trdqty):
-    #
-    #        self.cumvol += trdqty
-    #        self.cumefe += round(trdpx * trdqty, 3)
-    #        self.obvwap = self.cumefe/self.cumvol
-
     def update_last_trades(self, stats, pos):
 
         for i in range(len(STATS)):
