@@ -21,7 +21,7 @@ setup(
         'cycler==0.10.0',
         'kiwisolver==1.1.0',
         'matplotlib==3.1.0',
-        'numpy==1.16.4',
+        'numpy==1.22.0',
         'pandas==0.24.2',
         'pyparsing==2.4.0',
         'python-dateutil==2.8.0',
